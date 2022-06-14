@@ -54,16 +54,17 @@ class Client:
         self.__tcp_writer: asyncio.StreamWriter = tcp_writer
     
     async def _wait_for_read(self, callback):
-        header = b''
-        while len(header) < 4:
-            header = header + await self.__tcp_reader.read(4 - len(header))
-        message_size = int.from_bytes(header, 'big') # Big endian
+        while True:
+            header = b''
+            while len(header) < 4:
+                header = header + await self.__tcp_reader.read(4 - len(header))
+            message_size = int.from_bytes(header, 'big') # Big endian
 
-        data = b''
-        while len(data) < message_size:
-            data = data + await self.__tcp_reader.read(message_size - len(data))
-        
-        asyncio.create_task(callback(data))
+            data = b''
+            while len(data) < message_size:
+                data = data + await self.__tcp_reader.read(message_size - len(data))
+            
+            asyncio.create_task(callback(data))
         
 
     async def send(self, data: bytes):

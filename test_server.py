@@ -1,6 +1,7 @@
 import asyncio
 
 import Server
+from Message import Message
 
 server = Server.Server()
 
@@ -9,7 +10,8 @@ async def new_client(client):
     print("New client connected")
 
 @server.on_recieving_message
-async def got_message(data):
-    print(f"Recieved {data.contents}")
+async def got_message(data: Message):
+    print(f"Received {data.contents}")
+    await data.author.send(input("Reply: ").encode("utf-8"))
 
-server.start()
+server.start("0.0.0.0", 65432)

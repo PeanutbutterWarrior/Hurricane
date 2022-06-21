@@ -6,10 +6,6 @@ from datetime import datetime
 
 from Message import Message
 
-
-
-MESSAGE_HEADER_LENGTH: int = 8
-
 # Used to keep a reference to any tasks
 # asyncio.create_task only creates a weak reference to the task
 # If no other reference is kept, the garbage collector can destroy it before the task runs
@@ -43,9 +39,9 @@ class Server:
             new_client.start_recieving(self._recieved_message_callback)
         
 
-    def start(self):
+    def start(self, host, port):
         async def runner():
-            server = await asyncio.start_server(self.__new_client, host='127.0.0.1', port=65432)
+            server = await asyncio.start_server(self.__new_client, host=host, port=port)
             async with server:
                 await server.serve_forever()
 
@@ -74,8 +70,7 @@ class Client:
 
     async def _wait_for_read(self, callback: Callable[[Message], Awaitable]):
         while True:
-            a = Message.from_StreamReader(self.__tcp_reader)
-            message = await a
+            message = await Message.from_StreamReader(self, self.__tcp_reader)
             asyncio.create_task(callback(message))
 
     def start_recieving(self, callback:  Callable[[Message], Awaitable]):

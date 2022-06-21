@@ -10,6 +10,6 @@ async def new_client(client):
 
 @server.on_recieving_message
 async def got_message(data):
-    print(f"Recieved {data}")
+    print(f"Recieved {data.contents}")
 
 server.start()

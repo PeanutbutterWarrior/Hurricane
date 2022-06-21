@@ -6,14 +6,21 @@ import struct
 
 import Server
 
+
 class Message:
     HEADER_SIZE = 12
 
-    def __init__(self, contents: bytes, author: Server.Client, sent_at: datetime, recieved_at: datetime) -> Message:
-        self.contents = contents
-        self.sent_at = sent_at
-        self.recieved_at = recieved_at
-        self.author = author
+    def __init__(self,
+                 contents: bytes,
+                 author: Server.Client,
+                 sent_at: datetime,
+                 received_at: datetime
+                 ):
+        
+        self.contents: bytes = contents
+        self.sent_at: datetime = sent_at
+        self.received_at: datetime = received_at
+        self.author: Server.Client = author
 
     @staticmethod
     async def from_StreamReader(author: Server.Client, connection: StreamReader) -> Message:
@@ -23,11 +30,6 @@ class Message:
         contents = await connection.readexactly(message_size)
 
         time_sent = datetime.fromtimestamp(time_sent)
-        time_recieved = datetime.now()
+        time_received = datetime.now()
 
-        return Message(contents, author, time_sent, time_recieved)
-
-    # author: Client
-    # contents: str
-    # sent_at: datetime
-    # recieved_at: datetime
+        return Message(contents, author, time_sent, time_received)

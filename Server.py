@@ -1,8 +1,7 @@
 from __future__ import annotations
-from typing import Coroutine, List, Awaitable, Callable
+from typing import List, Awaitable, Callable, Optional, Coroutine
 
 import asyncio
-from datetime import datetime
 
 from Message import Message
 
@@ -17,27 +16,26 @@ task_references = set()
 class Server:
     def __init__(self):
         self._clients: List[Client] = []
-        self._new_connection_callback: Callable[[Client], Awaitable] = None
-        self._recieved_message_callback: Callable[[Message], Awaitable] = None
+        self._new_connection_callback: Optional[Callable[[Client], Coroutine]] = None
+        self._received_message_callback: Optional[Callable[[Message], Coroutine]] = None
 
     def __new_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
-        new_client = Client(reader, writer, None, None)
+        new_client = Client(reader, writer)
         self._clients.append(new_client)
 
         if self._new_connection_callback:
             new_connection_task = asyncio.create_task(self._new_connection_callback(new_client))
 
-            if self._recieved_message_callback:
+            if self._received_message_callback:
                 new_connection_task.add_done_callback(
-                    lambda _: new_client.start_recieving(self._recieved_message_callback)
+                    lambda _: new_client.start_receiving(self._received_message_callback)
                 )
 
             new_connection_task.add_done_callback(task_references.discard)
             task_references.add(new_connection_task)
-        
-        elif self._recieved_message_callback:
-            new_client.start_recieving(self._recieved_message_callback)
-        
+
+        elif self._received_message_callback:
+            new_client.start_receiving(self._received_message_callback)
 
     def start(self, host, port):
         async def runner():
@@ -50,9 +48,9 @@ class Server:
     def on_new_connection(self, coro: Callable[[Client], Awaitable]) -> Callable[[Client], Awaitable]:
         self._new_connection_callback = coro
         return coro
-    
-    def on_recieving_message(self, coro: Callable[[Message], Awaitable]) -> Callable[[Message], Awaitable]:
-        self._recieved_message_callback = coro
+
+    def on_receiving_message(self, coro: Callable[[Message], Awaitable]) -> Callable[[Message], Awaitable]:
+        self._received_message_callback = coro
         return coro
 
 
@@ -60,20 +58,18 @@ class Client:
     def __init__(self,
                  tcp_reader: asyncio.StreamReader,
                  tcp_writer: asyncio.StreamWriter,
-                 udp_reader: asyncio.StreamReader,
-                 udp_writer: asyncio.StreamWriter,
                  ):
 
         self.__tcp_reader: asyncio.StreamReader = tcp_reader
         self.__tcp_writer: asyncio.StreamWriter = tcp_writer
         self.__socket_read_task = None
 
-    async def _wait_for_read(self, callback: Callable[[Message], Awaitable]):
+    async def _wait_for_read(self, callback: Callable[[Message], Coroutine]):
         while True:
             message = await Message.from_StreamReader(self, self.__tcp_reader)
             asyncio.create_task(callback(message))
 
-    def start_recieving(self, callback:  Callable[[Message], Awaitable]):
+    def start_receiving(self, callback: Callable[[Message], Coroutine]):
         if not self.__socket_read_task:
             self.__socket_read_task = asyncio.create_task(
                 self._wait_for_read(callback)

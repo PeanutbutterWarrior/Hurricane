@@ -12,6 +12,9 @@ async def new_client(client):
 @server.on_receiving_message
 async def got_message(data: Message):
     print(f"Received {data.contents}")
-    await data.author.send(input("Reply: ").encode("utf-8"))
+
+@server.on_client_disconnect
+async def client_disconnect(client):
+    print("Client disconnected")
 
 server.start("0.0.0.0", 65432)

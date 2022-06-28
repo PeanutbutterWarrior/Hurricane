@@ -64,3 +64,15 @@ class TestStr:
         assert serialisation.deserialise(malformed) == 'abc'
         malformed = b'\x02\x00\x02abc'
         assert serialisation.deserialise(malformed) == 'ab'
+
+
+class TestBool:
+    def test_true(self):
+        serialised = serialisation.serialise(True)
+        assert serialised == b'\x03\x01'
+        assert serialisation.deserialise(serialised) is True
+
+    def test_false(self):
+        serialised = serialisation.serialise(False)
+        assert serialised == b'\x03\x00'
+        assert serialisation.deserialise(serialised) is False

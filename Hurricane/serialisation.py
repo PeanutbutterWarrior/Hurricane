@@ -97,11 +97,25 @@ def deserialise_str(stream: BytesIO) -> str:
     return stream.read(length).decode("utf-8")
 
 
+def serialise_bool(obj: bool, stream: BytesIO):
+    if obj:
+        stream.write(b'\x01')
+    else:
+        stream.write(b'\x00')
+
+
+def deserialise_bool(stream: BytesIO) -> bool:
+    if stream.read(1)[0]:
+        return True
+    else:
+        return False
+
+
 discriminant_to_type = {
     0: None,  # indicates a custom type
     1: int,
     2: str,
-    # 3: bool,
+    3: bool,
     # 4: tuple,
     # 5: list,
     # 6: dict,
@@ -116,4 +130,5 @@ type_to_discriminant = dict(zip(discriminant_to_type.values(), discriminant_to_t
 known_types: Dict[type, Tuple[Callable[[Any, BytesIO], None], Callable[[BytesIO], Any]]] = {
     int: (serialise_int, deserialise_int),
     str: (serialise_str, deserialise_str),
+    bool: (serialise_bool, deserialise_bool)
 }

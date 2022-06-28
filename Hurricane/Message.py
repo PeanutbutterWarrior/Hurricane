@@ -4,7 +4,7 @@ from asyncio import StreamReader
 from datetime import datetime
 import struct
 
-import Server
+from Hurricane import Server
 
 
 class Message:

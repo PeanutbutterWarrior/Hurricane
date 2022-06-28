@@ -28,7 +28,8 @@ def serialise(obj: Any) -> bytes:
     return output.getvalue()
 
 
-def deserialise(stream: BytesIO) -> Any:
+def deserialise(data: bytes) -> Any:
+    stream = BytesIO(data)
     discriminant = int.from_bytes(stream.read(1), 'big')
     object_type = discriminant_to_type.get(discriminant, None)
     if object_type is not None:

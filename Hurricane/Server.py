@@ -3,7 +3,7 @@ from typing import List, Awaitable, Callable, Optional, Coroutine
 
 import asyncio
 
-from Message import Message
+from Hurricane.Message import Message
 
 # Used to keep a reference to any tasks
 # asyncio.create_task only creates a weak reference to the task
@@ -99,7 +99,6 @@ class Client:
     async def shutdown(self):
         self.__tcp_writer.close()
         await self.__tcp_writer.wait_closed()
-
 
 
 class Group:

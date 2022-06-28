@@ -1,5 +1,5 @@
-import Server
-from Message import Message
+from Hurricane import Server
+from Hurricane.Message import Message
 
 server = Server.Server()
 

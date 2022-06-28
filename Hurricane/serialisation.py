@@ -12,6 +12,11 @@ class CannotBeSerialised(Exception):
     pass
 
 
+class MalformedDataError(Exception):
+    def __init__(self, causing_exception):
+        self.caused_by = causing_exception
+
+
 def serialise(obj: Any) -> bytes:
     output = BytesIO()
 
@@ -34,7 +39,10 @@ def deserialise(data: bytes) -> Any:
     object_type = discriminant_to_type.get(discriminant, None)
     if object_type is not None:
         _, deserialiser = known_types[object_type]
-        return deserialiser(stream)
+        try:
+            return deserialiser(stream)
+        except Exception as e:
+            raise MalformedDataError(e)
     else:
         raise NotImplemented
 

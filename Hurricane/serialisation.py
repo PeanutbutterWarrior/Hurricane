@@ -41,14 +41,19 @@ def deserialise(data: bytes) -> Any:
 
 def serialise_int(obj: int, stream: BytesIO):
     raw_bytes = obj.to_bytes(
-        (obj.bit_length() + 7) // 8,  # + 7 makes it round upwards
-        'big'
+        (obj.bit_length() + 6) // 7,  # + 7 makes it round upwards
+        'big',
+        signed=True
     )
 
     if len(raw_bytes) > MAXIMUM_SIZE:
         raise ObjectTooLargeException
 
-    stream.write(len(raw_bytes).to_bytes(2, 'big'))  # Previous length check ensures this cannot fail
+    # Force it to use at least 1 byte
+    if len(raw_bytes) == 0:
+        raw_bytes = b'\x00'
+
+    stream.write(len(raw_bytes).to_bytes(2, 'big'))
     stream.write(raw_bytes)
 
 
@@ -59,7 +64,8 @@ def deserialise_int(stream: BytesIO) -> int:
     )
     return int.from_bytes(
         stream.read(length),
-        'big'
+        'big',
+        signed=True
     )
 
 
@@ -70,7 +76,7 @@ def serialise_str(obj: str, stream: BytesIO):
         raise ObjectTooLargeException("String too large to be serialised.")
 
     stream.write(
-        len(encoded).to_bytes(2, 'big')  # Previous length check ensures this cannot fail
+        len(encoded).to_bytes(2, 'big')
     )
     stream.write(encoded)
 

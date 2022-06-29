@@ -203,6 +203,17 @@ def deserialise_float(stream: BytesIO) -> float:
     )[0]
 
 
+def serialise_complex(obj: complex, stream: BytesIO):
+    serialise_float(obj.real, stream)
+    serialise_float(obj.imag, stream)
+
+
+def deserialise_complex(stream: BytesIO) -> complex:
+    real = deserialise_float(stream)
+    imag = deserialise_float(stream)
+    return complex(real, imag)
+
+
 discriminant_to_type = {
     0: None,  # indicates a custom type
     1: int,
@@ -212,7 +223,7 @@ discriminant_to_type = {
     5: list,
     6: dict,
     7: set,
-    # 8: complex,
+    8: complex,
     9: float,
 }
 
@@ -221,11 +232,12 @@ type_to_discriminant = dict(zip(discriminant_to_type.values(), discriminant_to_t
 
 
 known_types: Dict[type, Tuple[Callable[[Any, BytesIO], None], Callable[[BytesIO], Any]]] = {
-    int:  (serialise_int, deserialise_int),
-    str:  (serialise_str, deserialise_str),
+    int: (serialise_int, deserialise_int),
+    str: (serialise_str, deserialise_str),
     bool: (serialise_bool, deserialise_bool),
     list: (serialise_list, deserialise_list),
     dict: (serialise_dict, deserialise_dict),
-    set:  (serialise_set, deserialise_set),
-    float: (serialise_float, deserialise_float)
+    set: (serialise_set, deserialise_set),
+    float: (serialise_float, deserialise_float),
+    complex: (serialise_complex, deserialise_complex),
 }

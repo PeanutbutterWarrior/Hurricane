@@ -76,3 +76,28 @@ class TestBool:
         serialised = serialisation.serialise(False)
         assert serialised == b'\x03\x00'
         assert serialisation.deserialise(serialised) is False
+
+
+class TestList:
+    def test_small_homogenous(self):
+        li = [2, 3, 1]
+        serialised = serialisation.serialise(li)
+        assert serialised == b'\x05\x00\x03' + b''.join(serialisation.serialise(i) for i in li)
+        assert serialisation.deserialise(serialised) == li
+
+    def test_small_heterogenous(self):
+        li = [1, 'bagel', False]
+        serialised = serialisation.serialise(li)
+        assert serialised == b'\x05\x00\x03' + b''.join(serialisation.serialise(i) for i in li)
+        assert serialisation.deserialise(serialised) == li
+
+    def test_large(self):
+        li = list(range(1, serialisation.MAXIMUM_SIZE))
+        serialised = serialisation.serialise(li)
+        assert serialised == b'\x05\xff\xff' + b''.join(serialisation.serialise(i) for i in li)
+        assert serialisation.deserialise(serialised) == li
+
+    def test_too_large(self):
+        li = list(range(serialisation.MAXIMUM_SIZE + 1))
+        with pytest.raises(serialisation.ObjectTooLargeException):
+            serialisation.serialise(li)

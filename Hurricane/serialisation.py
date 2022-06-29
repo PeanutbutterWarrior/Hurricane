@@ -140,6 +140,31 @@ def deserialise_list(stream: BytesIO) -> List[Any]:
     return new_list
 
 
+def serialise_dict(obj: Dict[Any, Any], stream: BytesIO):
+    if len(obj) > MAXIMUM_SIZE // 2:
+        raise ObjectTooLargeException
+
+    stream.write(
+        len(obj).to_bytes(2, 'big')
+    )
+
+    for key, value in obj.items():
+        _serialise(key, stream)
+        _serialise(value, stream)
+
+
+def deserialise_dict(stream: BytesIO) -> Dict[Any, Any]:
+    length = int.from_bytes(stream.read(2), 'big')
+
+    new_dict = {}
+    for _ in range(length):
+        key = _deserialise(stream)
+        value = _deserialise(stream)
+        new_dict[key] = value
+
+    return new_dict
+
+
 discriminant_to_type = {
     0: None,  # indicates a custom type
     1: int,
@@ -147,7 +172,7 @@ discriminant_to_type = {
     3: bool,
     # 4: tuple,
     5: list,
-    # 6: dict,
+    6: dict,
     # 7: set,
     # 8: complex
 }
@@ -161,4 +186,5 @@ known_types: Dict[type, Tuple[Callable[[Any, BytesIO], None], Callable[[BytesIO]
     str: (serialise_str, deserialise_str),
     bool: (serialise_bool, deserialise_bool),
     list: (serialise_list, deserialise_list),
+    dict: (serialise_dict, deserialise_dict),
 }

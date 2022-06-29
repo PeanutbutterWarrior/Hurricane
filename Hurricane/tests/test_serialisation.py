@@ -101,3 +101,29 @@ class TestList:
         li = list(range(serialisation.MAXIMUM_SIZE + 1))
         with pytest.raises(serialisation.ObjectTooLargeException):
             serialisation.serialise(li)
+
+
+class TestDict:
+    def test_small(self):
+        di = {1: 5, 2: 4, 3: 3, 4: 2, 5: 1}
+        serialised = serialisation.serialise(di)
+        assert serialisation.deserialise(serialised) == di
+
+    def test_heterogenous(self):
+        di = {1: True, False: 3, 'abc': 'cba', 'li': ['a', 'b', 'c']}
+        serialised = serialisation.serialise(di)
+        assert serialisation.deserialise(serialised) == di
+
+    def test_large(self):
+        di = dict((i, i + 1) for i in range(serialisation.MAXIMUM_SIZE // 2))
+        serialised = serialisation.serialise(di)
+        assert serialisation.deserialise(serialised) == di
+
+    def test_nested(self):
+        di = {
+            1: {'a': 1, 'b': 1},
+            2: {'c': 2, 'd': 2},
+        }
+
+        serialised = serialisation.serialise(di)
+        assert serialisation.deserialise(serialised) == di

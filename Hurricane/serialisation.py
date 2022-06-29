@@ -1,5 +1,6 @@
 from typing import Any, Dict, Tuple, Callable, List, Set
 from io import BytesIO
+import struct
 
 MAXIMUM_SIZE = 64 * 1024 - 1  # 64 KiB
 
@@ -189,6 +190,19 @@ def deserialise_set(stream: BytesIO) -> Set[Any]:
     return new_set
 
 
+def serialise_float(obj: float, stream: BytesIO):
+    stream.write(
+        struct.pack("d", obj)
+    )
+
+
+def deserialise_float(stream: BytesIO) -> float:
+    return struct.unpack(
+        "d",
+        stream.read(8)
+    )[0]
+
+
 discriminant_to_type = {
     0: None,  # indicates a custom type
     1: int,
@@ -198,7 +212,8 @@ discriminant_to_type = {
     5: list,
     6: dict,
     7: set,
-    # 8: complex
+    # 8: complex,
+    9: float,
 }
 
 # Reverse keys and values for lookup in either direction
@@ -212,4 +227,5 @@ known_types: Dict[type, Tuple[Callable[[Any, BytesIO], None], Callable[[BytesIO]
     list: (serialise_list, deserialise_list),
     dict: (serialise_dict, deserialise_dict),
     set:  (serialise_set, deserialise_set),
+    float: (serialise_float, deserialise_float)
 }

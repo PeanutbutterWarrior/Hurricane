@@ -1,7 +1,7 @@
-from typing import Any, Dict, Tuple, Callable, List
+from typing import Any, Dict, Tuple, Callable, List, Set
 from io import BytesIO
 
-MAXIMUM_SIZE = 64 * 1024  # 64 KiB
+MAXIMUM_SIZE = 64 * 1024 - 1  # 64 KiB
 
 
 class ObjectTooLargeException(Exception):
@@ -165,6 +165,30 @@ def deserialise_dict(stream: BytesIO) -> Dict[Any, Any]:
     return new_dict
 
 
+def serialise_set(obj: Set[Any], stream: BytesIO):
+    if len(obj) > MAXIMUM_SIZE:
+        raise ObjectTooLargeException
+
+    stream.write(
+        len(obj).to_bytes(2, 'big')
+    )
+
+    for item in obj:
+        _serialise(item, stream)
+
+
+def deserialise_set(stream: BytesIO) -> Set[Any]:
+    length = int.from_bytes(stream.read(2), 'big')
+
+    new_set = set()
+    for _ in range(length):
+        new_set.add(
+            _deserialise(stream)
+        )
+
+    return new_set
+
+
 discriminant_to_type = {
     0: None,  # indicates a custom type
     1: int,
@@ -173,7 +197,7 @@ discriminant_to_type = {
     # 4: tuple,
     5: list,
     6: dict,
-    # 7: set,
+    7: set,
     # 8: complex
 }
 
@@ -182,9 +206,10 @@ type_to_discriminant = dict(zip(discriminant_to_type.values(), discriminant_to_t
 
 
 known_types: Dict[type, Tuple[Callable[[Any, BytesIO], None], Callable[[BytesIO], Any]]] = {
-    int: (serialise_int, deserialise_int),
-    str: (serialise_str, deserialise_str),
+    int:  (serialise_int, deserialise_int),
+    str:  (serialise_str, deserialise_str),
     bool: (serialise_bool, deserialise_bool),
     list: (serialise_list, deserialise_list),
     dict: (serialise_dict, deserialise_dict),
+    set:  (serialise_set, deserialise_set),
 }

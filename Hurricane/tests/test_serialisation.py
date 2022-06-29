@@ -28,7 +28,7 @@ class TestInt:
 
     def test_too_large(self):
         with pytest.raises(serialisation.ObjectTooLargeException):
-            serialisation.serialise(2 ** (64 * 1024 * 8) + 1)
+            serialisation.serialise(2 ** (serialisation.MAXIMUM_SIZE * 8) + 1)
 
 
 class TestStr:
@@ -92,7 +92,7 @@ class TestList:
         assert serialisation.deserialise(serialised) == li
 
     def test_large(self):
-        li = list(range(1, serialisation.MAXIMUM_SIZE))
+        li = list(range(0, serialisation.MAXIMUM_SIZE))
         serialised = serialisation.serialise(li)
         assert serialised == b'\x05\xff\xff' + b''.join(serialisation.serialise(i) for i in li)
         assert serialisation.deserialise(serialised) == li
@@ -127,3 +127,25 @@ class TestDict:
 
         serialised = serialisation.serialise(di)
         assert serialisation.deserialise(serialised) == di
+
+
+class TestSet:
+    def test_small(self):
+        se = {1, 2, 3}
+        serialised = serialisation.serialise(se)
+        assert serialisation.deserialise(serialised) == se
+
+    def test_heterogenous(self):
+        se = {2, 'abc', False}
+        serialised = serialisation.serialise(se)
+        assert serialisation.deserialise(serialised) == se
+
+    def test_large(self):
+        se = set(range(serialisation.MAXIMUM_SIZE))
+        serialised = serialisation.serialise(se)
+        assert serialisation.deserialise(serialised) == se
+
+    def test_too_large(self):
+        se = set(range(serialisation.MAXIMUM_SIZE + 1))
+        with pytest.raises(serialisation.ObjectTooLargeException):
+            serialisation.serialise(se)

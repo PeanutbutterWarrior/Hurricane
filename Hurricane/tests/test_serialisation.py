@@ -149,3 +149,39 @@ class TestSet:
         se = set(range(serialisation.MAXIMUM_SIZE + 1))
         with pytest.raises(serialisation.ObjectTooLargeException):
             serialisation.serialise(se)
+
+
+class TestFloat:
+    def test_integer(self):
+        serialised = serialisation.serialise(4.0)
+        assert serialisation.deserialise(serialised) == 4.0
+        assert type(serialisation.deserialise(serialised)) is float
+
+    def test_negative(self):
+        num = -7 / 3
+        serialised = serialisation.serialise(num)
+        assert serialisation.deserialise(serialised) == num
+
+    def test_rational(self):
+        serialised = serialisation.serialise(2.5)
+        assert serialisation.deserialise(serialised) == 2.5
+
+    def test_irrational(self):
+        serialised = serialisation.serialise(5 / 3)
+        assert serialisation.deserialise(serialised) == 5 / 3
+
+    def test_inf(self):
+        inf = float("inf")
+        serialised = serialisation.serialise(inf)
+        assert serialisation.deserialise(serialised) == inf
+
+    def test_zero(self):
+        serialised = serialisation.serialise(0.0)
+        assert serialisation.deserialise(serialised) == 0.0
+        assert type(serialisation.deserialise(serialised)) is float
+
+    def test_nan(self):
+        nan = float("nan")
+        serialised = serialisation.serialise(nan)
+        deserialised = serialisation.deserialise(serialised)
+        assert deserialised != deserialised  # NaN is the only float not equal to itself

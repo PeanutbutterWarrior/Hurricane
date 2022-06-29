@@ -185,3 +185,23 @@ class TestFloat:
         serialised = serialisation.serialise(nan)
         deserialised = serialisation.deserialise(serialised)
         assert deserialised != deserialised  # NaN is the only float not equal to itself
+
+
+class TestComplex:
+    def test_real(self):
+        serialised = serialisation.serialise(4 + 0j)
+        assert serialisation.deserialise(serialised) == 4 + 0j
+        assert type(serialisation.deserialise(serialised)) is complex
+
+    def test_imaginary(self):
+        serialised = serialisation.serialise(2j)
+        assert serialisation.deserialise(serialised) == 2j
+        assert type(serialisation.deserialise(serialised)) is complex
+
+    def test_complex(self):
+        serialised = serialisation.serialise(3 + 4j)
+        assert serialisation.deserialise(serialised) == 3 + 4j
+
+    def test_float_parts(self):
+        serialised = serialisation.serialise(4.5 + 2.3j)
+        assert serialisation.deserialise(serialised) == 4.5 + 2.3j

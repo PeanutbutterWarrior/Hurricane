@@ -1,7 +1,7 @@
-from typing import Any, Dict, Tuple, Callable
+from typing import Any, Dict, Tuple, Callable, List
 from io import BytesIO
 
-MAXIMUM_SIZE = 64 * 1024 - 1  # 64 KiB
+MAXIMUM_SIZE = 64 * 1024  # 64 KiB
 
 
 class ObjectTooLargeException(Exception):
@@ -20,21 +20,28 @@ class MalformedDataError(Exception):
 def serialise(obj: Any) -> bytes:
     output = BytesIO()
 
-    serialiser, _ = known_types.get(type(obj), (None, None))
-    if serialiser is not None:
-        output.write(
-            type_to_discriminant[type(obj)]
-            .to_bytes(1, 'big')
-        )
-        serialiser(obj, output)
-    else:
-        raise NotImplemented
+    _serialise(obj, output)
 
     return output.getvalue()
 
 
+def _serialise(obj: Any, stream: BytesIO):
+    serialiser, _ = known_types.get(type(obj), (None, None))
+    if serialiser is not None:
+        stream.write(
+            type_to_discriminant[type(obj)]
+            .to_bytes(1, 'big')
+        )
+        serialiser(obj, stream)
+    else:
+        raise NotImplementedError
+
+
 def deserialise(data: bytes) -> Any:
-    stream = BytesIO(data)
+    return _deserialise(BytesIO(data))
+
+
+def _deserialise(stream: BytesIO) -> Any:
     discriminant = int.from_bytes(stream.read(1), 'big')
     object_type = discriminant_to_type.get(discriminant, None)
     if object_type is not None:
@@ -44,7 +51,7 @@ def deserialise(data: bytes) -> Any:
         except Exception as e:
             raise MalformedDataError(e)
     else:
-        raise NotImplemented
+        raise NotImplementedError
 
 
 def serialise_int(obj: int, stream: BytesIO):
@@ -111,13 +118,35 @@ def deserialise_bool(stream: BytesIO) -> bool:
         return False
 
 
+def serialise_list(obj: List[Any], stream: BytesIO):
+    if len(obj) > MAXIMUM_SIZE:
+        raise ObjectTooLargeException
+
+    stream.write(
+        len(obj).to_bytes(2, 'big')
+    )
+
+    for item in obj:
+        _serialise(item, stream)
+
+
+def deserialise_list(stream: BytesIO) -> List[Any]:
+    length = int.from_bytes(stream.read(2), 'big')
+
+    new_list = [None] * length  # Initialise a list with the correct size to avoid reallocations
+    for i in range(length):
+        new_list[i] = _deserialise(stream)
+
+    return new_list
+
+
 discriminant_to_type = {
     0: None,  # indicates a custom type
     1: int,
     2: str,
     3: bool,
     # 4: tuple,
-    # 5: list,
+    5: list,
     # 6: dict,
     # 7: set,
     # 8: complex
@@ -130,5 +159,6 @@ type_to_discriminant = dict(zip(discriminant_to_type.values(), discriminant_to_t
 known_types: Dict[type, Tuple[Callable[[Any, BytesIO], None], Callable[[BytesIO], Any]]] = {
     int: (serialise_int, deserialise_int),
     str: (serialise_str, deserialise_str),
-    bool: (serialise_bool, deserialise_bool)
+    bool: (serialise_bool, deserialise_bool),
+    list: (serialise_list, deserialise_list),
 }

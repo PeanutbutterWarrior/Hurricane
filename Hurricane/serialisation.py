@@ -258,8 +258,29 @@ def serialise_bytearray(obj: bytearray, stream: BytesIO):
     serialise_bytes(obj, stream)
 
 
-def deserialise_bytearray(stream: BytesIO):
+def deserialise_bytearray(stream: BytesIO) -> bytearray:
     return bytearray(deserialise_bytes(stream))
+
+
+def serialise_frozenset(obj: frozenset, stream: BytesIO):
+    if len(obj) > MAXIMUM_SIZE:
+        raise ObjectTooLargeException
+
+    stream.write(
+        len(obj).to_bytes(2, 'big')
+    )
+
+    for item in obj:
+        _serialise(item, stream)
+
+
+def deserialise_frozenset(stream: BytesIO) -> frozenset:
+    length = int.from_bytes(stream.read(2), 'big')
+
+    return frozenset(
+        _deserialise(stream)
+        for _ in range(length)
+    )
 
 
 discriminant_to_type = {
@@ -275,7 +296,7 @@ discriminant_to_type = {
     9: float,
     10: bytes,
     11: bytearray,
-    # 12: frozenset,
+    12: frozenset,
     # 13: type(None)  # The NoneType is not accessible otherwise in 3.8
 }
 
@@ -295,4 +316,5 @@ known_types: Dict[type, Tuple[Callable[[Any, BytesIO], None], Callable[[BytesIO]
     complex: (serialise_complex, deserialise_complex),
     bytes: (serialise_bytes, deserialise_bytes),
     bytearray: (serialise_bytearray, deserialise_bytearray),
+    frozenset: (serialise_frozenset, deserialise_frozenset),
 }

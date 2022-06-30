@@ -76,3 +76,24 @@ class TestBool:
         serialised = serialisation.serialise(False)
         assert serialised == b'\x03\x00'
         assert serialisation.deserialise(serialised) is False
+
+
+class TestTuple:
+    def test_small(self):
+        tup = (1, 'a', True)
+        serialised = serialisation.serialise(tup)
+        assert serialisation.deserialise(serialised) == tup
+
+    def test_large(self):
+        tup = tuple(range(1, serialisation.MAXIMUM_SIZE))
+        serialised = serialisation.serialise(tup)
+        assert serialisation.deserialise(serialised) == tup
+
+    def test_empty(self):
+        serialised = serialisation.serialise(tuple())
+        assert serialisation.deserialise(serialised) == tuple()
+
+    def test_too_large(self):
+        tup = tuple(range(1, serialisation.MAXIMUM_SIZE + 5))
+        with pytest.raises(serialisation.ObjectTooLargeException):
+            serialisation.serialise(tup)

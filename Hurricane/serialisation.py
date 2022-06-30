@@ -120,7 +120,7 @@ def deserialise_bool(stream: BytesIO) -> bool:
         return False
 
 
-def serialise_tuple(obj: Tuple[Any, ...], stream: BytesIO):
+def serialise_tuple(obj: tuple, stream: BytesIO):
     if len(obj) > MAXIMUM_SIZE:
         raise ObjectTooLargeException
 
@@ -132,7 +132,7 @@ def serialise_tuple(obj: Tuple[Any, ...], stream: BytesIO):
         _serialise(item, stream)
 
 
-def deserialise_tuple(stream: BytesIO) -> Tuple[Any, ...]:
+def deserialise_tuple(stream: BytesIO) -> tuple:
     length = int.from_bytes(
         stream.read(2), 'big'
     )
@@ -143,7 +143,7 @@ def deserialise_tuple(stream: BytesIO) -> Tuple[Any, ...]:
     )
 
 
-def serialise_list(obj: List[Any], stream: BytesIO):
+def serialise_list(obj: list, stream: BytesIO):
     if len(obj) > MAXIMUM_SIZE:
         raise ObjectTooLargeException
 
@@ -155,17 +155,17 @@ def serialise_list(obj: List[Any], stream: BytesIO):
         _serialise(item, stream)
 
 
-def deserialise_list(stream: BytesIO) -> List[Any]:
+def deserialise_list(stream: BytesIO) -> list:
     length = int.from_bytes(stream.read(2), 'big')
 
-    new_list = [None] * length  # Initialise a list with the correct size to avoid reallocations
+    new_list = []
     for i in range(length):
-        new_list[i] = _deserialise(stream)
+        new_list.append(_deserialise(stream))
 
     return new_list
 
 
-def serialise_dict(obj: Dict[Any, Any], stream: BytesIO):
+def serialise_dict(obj: dict, stream: BytesIO):
     if len(obj) > MAXIMUM_SIZE // 2:
         raise ObjectTooLargeException
 
@@ -178,7 +178,7 @@ def serialise_dict(obj: Dict[Any, Any], stream: BytesIO):
         _serialise(value, stream)
 
 
-def deserialise_dict(stream: BytesIO) -> Dict[Any, Any]:
+def deserialise_dict(stream: BytesIO) -> dict:
     length = int.from_bytes(stream.read(2), 'big')
 
     new_dict = {}
@@ -190,7 +190,7 @@ def deserialise_dict(stream: BytesIO) -> Dict[Any, Any]:
     return new_dict
 
 
-def serialise_set(obj: Set[Any], stream: BytesIO):
+def serialise_set(obj: set, stream: BytesIO):
     if len(obj) > MAXIMUM_SIZE:
         raise ObjectTooLargeException
 
@@ -202,7 +202,7 @@ def serialise_set(obj: Set[Any], stream: BytesIO):
         _serialise(item, stream)
 
 
-def deserialise_set(stream: BytesIO) -> Set[Any]:
+def deserialise_set(stream: BytesIO) -> set:
     length = int.from_bytes(stream.read(2), 'big')
 
     new_set = set()

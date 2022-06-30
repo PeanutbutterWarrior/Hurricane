@@ -243,3 +243,25 @@ class TestComplex:
     def test_float_parts(self):
         serialised = serialisation.serialise(4.5 + 2.3j)
         assert serialisation.deserialise(serialised) == 4.5 + 2.3j
+
+
+class TestBytes:
+    def test_small(self):
+        by = b'agd'
+        serialised = serialisation.serialise(by)
+        assert serialisation.deserialise(serialised) == by
+
+    def test_large(self):
+        by = b'abcd' * (serialisation.MAXIMUM_SIZE // 4)
+        serialised = serialisation.serialise(by)
+        assert serialisation.deserialise(serialised) == by
+
+    def test_empty(self):
+        serialised = serialisation.serialise(b'')
+        assert serialisation.deserialise(serialised) == b''
+
+    def test_too_large(self):
+        with pytest.raises(serialisation.ObjectTooLargeException):
+            serialisation.serialise(
+                b'a' * (serialisation.MAXIMUM_SIZE + 1)
+            )

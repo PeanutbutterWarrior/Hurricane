@@ -20,21 +20,29 @@ class MalformedDataError(Exception):
 def serialise(obj: Any) -> bytes:
     output = BytesIO()
 
-    serialiser, _ = known_types.get(type(obj), (None, None))
-    if serialiser is not None:
-        output.write(
-            type_to_discriminant[type(obj)]
-            .to_bytes(1, 'big')
-        )
-        serialiser(obj, output)
-    else:
-        raise NotImplemented
+    _serialise(obj, output)
 
     return output.getvalue()
 
 
+def _serialise(obj: Any, stream: BytesIO):
+    serialiser, _ = known_types.get(type(obj), (None, None))
+    if serialiser is not None:
+        stream.write(
+            type_to_discriminant[type(obj)]
+            .to_bytes(1, 'big')
+        )
+        serialiser(obj, stream)
+    else:
+        raise NotImplemented
+
+
 def deserialise(data: bytes) -> Any:
     stream = BytesIO(data)
+    return _deserialise(stream)
+
+
+def _deserialise(stream: BytesIO) -> Any:
     discriminant = int.from_bytes(stream.read(1), 'big')
     object_type = discriminant_to_type.get(discriminant, None)
     if object_type is not None:
@@ -111,12 +119,34 @@ def deserialise_bool(stream: BytesIO) -> bool:
         return False
 
 
+def serialise_tuple(obj: Tuple[Any, ...], stream: BytesIO):
+    if len(obj) > MAXIMUM_SIZE:
+        raise ObjectTooLargeException
+
+    stream.write(
+        len(obj).to_bytes(2, 'big')
+    )
+    for item in obj:
+        _serialise(item, stream)
+
+
+def deserialise_tuple(stream: BytesIO) -> Tuple[Any, ...]:
+    length = int.from_bytes(
+        stream.read(2), 'big'
+    )
+
+    return tuple(
+        _deserialise(stream)
+        for _ in range(length)
+    )
+
+
 discriminant_to_type = {
     0: None,  # indicates a custom type
     1: int,
     2: str,
     3: bool,
-    # 4: tuple,
+    4: tuple,
     # 5: list,
     # 6: dict,
     # 7: set,
@@ -130,5 +160,6 @@ type_to_discriminant = dict(zip(discriminant_to_type.values(), discriminant_to_t
 known_types: Dict[type, Tuple[Callable[[Any, BytesIO], None], Callable[[BytesIO], Any]]] = {
     int: (serialise_int, deserialise_int),
     str: (serialise_str, deserialise_str),
-    bool: (serialise_bool, deserialise_bool)
+    bool: (serialise_bool, deserialise_bool),
+    tuple: (serialise_tuple, deserialise_tuple),
 }

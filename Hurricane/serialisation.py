@@ -18,19 +18,20 @@ class MalformedDataError(Exception):
         self.caused_by = causing_exception
 
 
-def serialise(obj: Any) -> bytes:
+#  These 4 public functions are named to match pickle, marshal, json, etc.
+def dumps(obj: Any) -> bytes:
     output = BytesIO()
 
-    _serialise(obj, output)
+    dump(obj, output)
 
     return output.getvalue()
 
 
-def _serialise(obj: Any, stream: BytesIO):
+def dump(obj: Any, stream: BytesIO):
     serialiser, _ = known_types.get(type(obj), (None, None))
     if serialiser is not None:
         stream.write(
-            type_to_discriminant[type(obj)]
+            _type_to_discriminant[type(obj)]
             .to_bytes(1, 'big')
         )
         serialiser(obj, stream)
@@ -38,14 +39,14 @@ def _serialise(obj: Any, stream: BytesIO):
         raise NotImplementedError
 
 
-def deserialise(data: bytes) -> Any:
+def loads(data: bytes) -> Any:
     stream = BytesIO(data)
-    return _deserialise(stream)
+    return load(stream)
 
 
-def _deserialise(stream: BytesIO) -> Any:
+def load(stream: BytesIO) -> Any:
     discriminant = int.from_bytes(stream.read(1), 'big')
-    object_type = discriminant_to_type.get(discriminant, None)
+    object_type = _discriminant_to_type.get(discriminant, None)
     if object_type is not None:
         _, deserialiser = known_types[object_type]
         try:
@@ -56,7 +57,7 @@ def _deserialise(stream: BytesIO) -> Any:
         raise NotImplementedError
 
 
-def serialise_int(obj: int, stream: BytesIO):
+def _serialise_int(obj: int, stream: BytesIO):
     raw_bytes = obj.to_bytes(
         (obj.bit_length() + 6) // 7,  # + 7 makes it round upwards
         'big',
@@ -74,7 +75,7 @@ def serialise_int(obj: int, stream: BytesIO):
     stream.write(raw_bytes)
 
 
-def deserialise_int(stream: BytesIO) -> int:
+def _deserialise_int(stream: BytesIO) -> int:
     length = int.from_bytes(
         stream.read(2),
         'big',
@@ -86,7 +87,7 @@ def deserialise_int(stream: BytesIO) -> int:
     )
 
 
-def serialise_str(obj: str, stream: BytesIO):
+def _serialise_str(obj: str, stream: BytesIO):
     encoded = obj.encode("utf-8")
 
     if len(encoded) > MAXIMUM_SIZE:
@@ -98,7 +99,7 @@ def serialise_str(obj: str, stream: BytesIO):
     stream.write(encoded)
 
 
-def deserialise_str(stream: BytesIO) -> str:
+def _deserialise_str(stream: BytesIO) -> str:
     length = int.from_bytes(
         stream.read(2),
         'big'
@@ -106,21 +107,21 @@ def deserialise_str(stream: BytesIO) -> str:
     return stream.read(length).decode("utf-8")
 
 
-def serialise_bool(obj: bool, stream: BytesIO):
+def _serialise_bool(obj: bool, stream: BytesIO):
     if obj:
         stream.write(b'\x01')
     else:
         stream.write(b'\x00')
 
 
-def deserialise_bool(stream: BytesIO) -> bool:
+def _deserialise_bool(stream: BytesIO) -> bool:
     if stream.read(1)[0]:
         return True
     else:
         return False
 
 
-def serialise_tuple(obj: tuple, stream: BytesIO):
+def _serialise_tuple(obj: tuple, stream: BytesIO):
     if len(obj) > MAXIMUM_SIZE:
         raise ObjectTooLargeException
 
@@ -129,21 +130,21 @@ def serialise_tuple(obj: tuple, stream: BytesIO):
     )
 
     for item in obj:
-        _serialise(item, stream)
+        dump(item, stream)
 
 
-def deserialise_tuple(stream: BytesIO) -> tuple:
+def _deserialise_tuple(stream: BytesIO) -> tuple:
     length = int.from_bytes(
         stream.read(2), 'big'
     )
 
     return tuple(
-        _deserialise(stream)
+        load(stream)
         for _ in range(length)
     )
 
 
-def serialise_list(obj: list, stream: BytesIO):
+def _serialise_list(obj: list, stream: BytesIO):
     if len(obj) > MAXIMUM_SIZE:
         raise ObjectTooLargeException
 
@@ -152,20 +153,20 @@ def serialise_list(obj: list, stream: BytesIO):
     )
 
     for item in obj:
-        _serialise(item, stream)
+        dump(item, stream)
 
 
-def deserialise_list(stream: BytesIO) -> list:
+def _deserialise_list(stream: BytesIO) -> list:
     length = int.from_bytes(stream.read(2), 'big')
 
     new_list = []
     for i in range(length):
-        new_list.append(_deserialise(stream))
+        new_list.append(load(stream))
 
     return new_list
 
 
-def serialise_dict(obj: dict, stream: BytesIO):
+def _serialise_dict(obj: dict, stream: BytesIO):
     if len(obj) > MAXIMUM_SIZE // 2:
         raise ObjectTooLargeException
 
@@ -174,23 +175,23 @@ def serialise_dict(obj: dict, stream: BytesIO):
     )
 
     for key, value in obj.items():
-        _serialise(key, stream)
-        _serialise(value, stream)
+        dump(key, stream)
+        dump(value, stream)
 
 
-def deserialise_dict(stream: BytesIO) -> dict:
+def _deserialise_dict(stream: BytesIO) -> dict:
     length = int.from_bytes(stream.read(2), 'big')
 
     new_dict = {}
     for _ in range(length):
-        key = _deserialise(stream)
-        value = _deserialise(stream)
+        key = load(stream)
+        value = load(stream)
         new_dict[key] = value
 
     return new_dict
 
 
-def serialise_set(obj: set, stream: BytesIO):
+def _serialise_set(obj: set, stream: BytesIO):
     if len(obj) > MAXIMUM_SIZE:
         raise ObjectTooLargeException
 
@@ -199,46 +200,46 @@ def serialise_set(obj: set, stream: BytesIO):
     )
 
     for item in obj:
-        _serialise(item, stream)
+        dump(item, stream)
 
 
-def deserialise_set(stream: BytesIO) -> set:
+def _deserialise_set(stream: BytesIO) -> set:
     length = int.from_bytes(stream.read(2), 'big')
 
     new_set = set()
     for _ in range(length):
         new_set.add(
-            _deserialise(stream)
+            load(stream)
         )
 
     return new_set
 
 
-def serialise_float(obj: float, stream: BytesIO):
+def _serialise_float(obj: float, stream: BytesIO):
     stream.write(
         struct.pack("d", obj)
     )
 
 
-def deserialise_float(stream: BytesIO) -> float:
+def _deserialise_float(stream: BytesIO) -> float:
     return struct.unpack(
         "d",
         stream.read(8)
     )[0]
 
 
-def serialise_complex(obj: complex, stream: BytesIO):
-    serialise_float(obj.real, stream)
-    serialise_float(obj.imag, stream)
+def _serialise_complex(obj: complex, stream: BytesIO):
+    _serialise_float(obj.real, stream)
+    _serialise_float(obj.imag, stream)
 
 
-def deserialise_complex(stream: BytesIO) -> complex:
-    real = deserialise_float(stream)
-    imag = deserialise_float(stream)
+def _deserialise_complex(stream: BytesIO) -> complex:
+    real = _deserialise_float(stream)
+    imag = _deserialise_float(stream)
     return complex(real, imag)
 
 
-def serialise_bytes(obj: bytes, stream: BytesIO):
+def _serialise_bytes(obj: bytes, stream: BytesIO):
     if len(obj) > MAXIMUM_SIZE:
         raise ObjectTooLargeException
 
@@ -249,20 +250,20 @@ def serialise_bytes(obj: bytes, stream: BytesIO):
     stream.write(obj)
 
 
-def deserialise_bytes(stream: BytesIO) -> bytes:
+def _deserialise_bytes(stream: BytesIO) -> bytes:
     length = int.from_bytes(stream.read(2), 'big')
     return stream.read(length)
 
 
-def serialise_bytearray(obj: bytearray, stream: BytesIO):
-    serialise_bytes(obj, stream)
+def _serialise_bytearray(obj: bytearray, stream: BytesIO):
+    _serialise_bytes(obj, stream)
 
 
-def deserialise_bytearray(stream: BytesIO) -> bytearray:
-    return bytearray(deserialise_bytes(stream))
+def _deserialise_bytearray(stream: BytesIO) -> bytearray:
+    return bytearray(_deserialise_bytes(stream))
 
 
-def serialise_frozenset(obj: frozenset, stream: BytesIO):
+def _serialise_frozenset(obj: frozenset, stream: BytesIO):
     if len(obj) > MAXIMUM_SIZE:
         raise ObjectTooLargeException
 
@@ -271,28 +272,28 @@ def serialise_frozenset(obj: frozenset, stream: BytesIO):
     )
 
     for item in obj:
-        _serialise(item, stream)
+        dump(item, stream)
 
 
-def deserialise_frozenset(stream: BytesIO) -> frozenset:
+def _deserialise_frozenset(stream: BytesIO) -> frozenset:
     length = int.from_bytes(stream.read(2), 'big')
 
     return frozenset(
-        _deserialise(stream)
+        load(stream)
         for _ in range(length)
     )
 
 
-def serialise_none(obj: None, stream: BytesIO):
+def _serialise_none(obj: None, stream: BytesIO):
     # None is a singleton, no data is stored about it
     return
 
 
-def deserialise_none(stream: BytesIO):
+def _deserialise_none(stream: BytesIO):
     return None
 
 
-discriminant_to_type = {
+_discriminant_to_type = {
     0: None,  # indicates a custom type
     1: int,
     2: str,
@@ -310,21 +311,21 @@ discriminant_to_type = {
 }
 
 # Reverse keys and values for lookup in either direction
-type_to_discriminant = dict(zip(discriminant_to_type.values(), discriminant_to_type.keys()))
+_type_to_discriminant = dict(zip(_discriminant_to_type.values(), _discriminant_to_type.keys()))
 
 
 known_types: Dict[type, Tuple[Callable[[Any, BytesIO], None], Callable[[BytesIO], Any]]] = {
-    int: (serialise_int, deserialise_int),
-    str: (serialise_str, deserialise_str),
-    bool: (serialise_bool, deserialise_bool),
-    tuple: (serialise_tuple, deserialise_tuple),
-    list: (serialise_list, deserialise_list),
-    dict: (serialise_dict, deserialise_dict),
-    set: (serialise_set, deserialise_set),
-    float: (serialise_float, deserialise_float),
-    complex: (serialise_complex, deserialise_complex),
-    bytes: (serialise_bytes, deserialise_bytes),
-    bytearray: (serialise_bytearray, deserialise_bytearray),
-    frozenset: (serialise_frozenset, deserialise_frozenset),
-    type(None): (serialise_none, deserialise_none),
+    int: (_serialise_int, _deserialise_int),
+    str: (_serialise_str, _deserialise_str),
+    bool: (_serialise_bool, _deserialise_bool),
+    tuple: (_serialise_tuple, _deserialise_tuple),
+    list: (_serialise_list, _deserialise_list),
+    dict: (_serialise_dict, _deserialise_dict),
+    set: (_serialise_set, _deserialise_set),
+    float: (_serialise_float, _deserialise_float),
+    complex: (_serialise_complex, _deserialise_complex),
+    bytes: (_serialise_bytes, _deserialise_bytes),
+    bytearray: (_serialise_bytearray, _deserialise_bytearray),
+    frozenset: (_serialise_frozenset, _deserialise_frozenset),
+    type(None): (_serialise_none, _deserialise_none),
 }

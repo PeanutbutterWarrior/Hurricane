@@ -313,3 +313,9 @@ class TestFrozenset:
     def test_empty(self):
         serialised = serialisation.serialise(frozenset())
         assert serialisation.deserialise(serialised) == frozenset()
+
+
+class TestNone:
+    def test_none(self):
+        serialised = serialisation.serialise(None)
+        assert serialisation.deserialise(serialised) is None

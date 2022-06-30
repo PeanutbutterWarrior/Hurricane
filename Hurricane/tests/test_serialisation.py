@@ -28,7 +28,7 @@ class TestInt:
 
     def test_too_large(self):
         with pytest.raises(serialisation.ObjectTooLargeException):
-            serialisation.serialise(2 ** (64 * 1024 * 8) + 1)
+            serialisation.serialise(2 ** (serialisation.MAXIMUM_SIZE * 8) + 1)
 
 
 class TestStr:
@@ -97,3 +97,132 @@ class TestTuple:
         tup = tuple(range(1, serialisation.MAXIMUM_SIZE + 5))
         with pytest.raises(serialisation.ObjectTooLargeException):
             serialisation.serialise(tup)
+
+
+class TestList:
+    def test_small_homogenous(self):
+        li = [2, 3, 1]
+        serialised = serialisation.serialise(li)
+        assert serialised == b'\x05\x00\x03' + b''.join(serialisation.serialise(i) for i in li)
+        assert serialisation.deserialise(serialised) == li
+
+    def test_small_heterogenous(self):
+        li = [1, 'bagel', False]
+        serialised = serialisation.serialise(li)
+        assert serialised == b'\x05\x00\x03' + b''.join(serialisation.serialise(i) for i in li)
+        assert serialisation.deserialise(serialised) == li
+
+    def test_large(self):
+        li = list(range(0, serialisation.MAXIMUM_SIZE))
+        serialised = serialisation.serialise(li)
+        assert serialised == b'\x05\xff\xff' + b''.join(serialisation.serialise(i) for i in li)
+        assert serialisation.deserialise(serialised) == li
+
+    def test_too_large(self):
+        li = list(range(serialisation.MAXIMUM_SIZE + 1))
+        with pytest.raises(serialisation.ObjectTooLargeException):
+            serialisation.serialise(li)
+
+
+class TestDict:
+    def test_small(self):
+        di = {1: 5, 2: 4, 3: 3, 4: 2, 5: 1}
+        serialised = serialisation.serialise(di)
+        assert serialisation.deserialise(serialised) == di
+
+    def test_heterogenous(self):
+        di = {1: True, False: 3, 'abc': 'cba', 'li': ['a', 'b', 'c']}
+        serialised = serialisation.serialise(di)
+        assert serialisation.deserialise(serialised) == di
+
+    def test_large(self):
+        di = dict((i, i + 1) for i in range(serialisation.MAXIMUM_SIZE // 2))
+        serialised = serialisation.serialise(di)
+        assert serialisation.deserialise(serialised) == di
+
+    def test_nested(self):
+        di = {
+            1: {'a': 1, 'b': 1},
+            2: {'c': 2, 'd': 2},
+        }
+
+        serialised = serialisation.serialise(di)
+        assert serialisation.deserialise(serialised) == di
+
+
+class TestSet:
+    def test_small(self):
+        se = {1, 2, 3}
+        serialised = serialisation.serialise(se)
+        assert serialisation.deserialise(serialised) == se
+
+    def test_heterogenous(self):
+        se = {2, 'abc', False}
+        serialised = serialisation.serialise(se)
+        assert serialisation.deserialise(serialised) == se
+
+    def test_large(self):
+        se = set(range(serialisation.MAXIMUM_SIZE))
+        serialised = serialisation.serialise(se)
+        assert serialisation.deserialise(serialised) == se
+
+    def test_too_large(self):
+        se = set(range(serialisation.MAXIMUM_SIZE + 1))
+        with pytest.raises(serialisation.ObjectTooLargeException):
+            serialisation.serialise(se)
+
+
+class TestFloat:
+    def test_integer(self):
+        serialised = serialisation.serialise(4.0)
+        assert serialisation.deserialise(serialised) == 4.0
+        assert type(serialisation.deserialise(serialised)) is float
+
+    def test_negative(self):
+        num = -7 / 3
+        serialised = serialisation.serialise(num)
+        assert serialisation.deserialise(serialised) == num
+
+    def test_rational(self):
+        serialised = serialisation.serialise(2.5)
+        assert serialisation.deserialise(serialised) == 2.5
+
+    def test_irrational(self):
+        serialised = serialisation.serialise(5 / 3)
+        assert serialisation.deserialise(serialised) == 5 / 3
+
+    def test_inf(self):
+        inf = float("inf")
+        serialised = serialisation.serialise(inf)
+        assert serialisation.deserialise(serialised) == inf
+
+    def test_zero(self):
+        serialised = serialisation.serialise(0.0)
+        assert serialisation.deserialise(serialised) == 0.0
+        assert type(serialisation.deserialise(serialised)) is float
+
+    def test_nan(self):
+        nan = float("nan")
+        serialised = serialisation.serialise(nan)
+        deserialised = serialisation.deserialise(serialised)
+        assert deserialised != deserialised  # NaN is the only float not equal to itself
+
+
+class TestComplex:
+    def test_real(self):
+        serialised = serialisation.serialise(4 + 0j)
+        assert serialisation.deserialise(serialised) == 4 + 0j
+        assert type(serialisation.deserialise(serialised)) is complex
+
+    def test_imaginary(self):
+        serialised = serialisation.serialise(2j)
+        assert serialisation.deserialise(serialised) == 2j
+        assert type(serialisation.deserialise(serialised)) is complex
+
+    def test_complex(self):
+        serialised = serialisation.serialise(3 + 4j)
+        assert serialisation.deserialise(serialised) == 3 + 4j
+
+    def test_float_parts(self):
+        serialised = serialisation.serialise(4.5 + 2.3j)
+        assert serialisation.deserialise(serialised) == 4.5 + 2.3j

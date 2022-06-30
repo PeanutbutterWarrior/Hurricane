@@ -1,5 +1,6 @@
-from typing import Any, Dict, Tuple, Callable
+from typing import Any, Dict, Tuple, Callable, List, Set
 from io import BytesIO
+import struct
 
 MAXIMUM_SIZE = 64 * 1024 - 1  # 64 KiB
 
@@ -34,7 +35,7 @@ def _serialise(obj: Any, stream: BytesIO):
         )
         serialiser(obj, stream)
     else:
-        raise NotImplemented
+        raise NotImplementedError
 
 
 def deserialise(data: bytes) -> Any:
@@ -52,7 +53,7 @@ def _deserialise(stream: BytesIO) -> Any:
         except Exception as e:
             raise MalformedDataError(e)
     else:
-        raise NotImplemented
+        raise NotImplementedError
 
 
 def serialise_int(obj: int, stream: BytesIO):
@@ -126,6 +127,7 @@ def serialise_tuple(obj: Tuple[Any, ...], stream: BytesIO):
     stream.write(
         len(obj).to_bytes(2, 'big')
     )
+
     for item in obj:
         _serialise(item, stream)
 
@@ -141,16 +143,112 @@ def deserialise_tuple(stream: BytesIO) -> Tuple[Any, ...]:
     )
 
 
+def serialise_list(obj: List[Any], stream: BytesIO):
+    if len(obj) > MAXIMUM_SIZE:
+        raise ObjectTooLargeException
+
+    stream.write(
+        len(obj).to_bytes(2, 'big')
+    )
+
+    for item in obj:
+        _serialise(item, stream)
+
+
+def deserialise_list(stream: BytesIO) -> List[Any]:
+    length = int.from_bytes(stream.read(2), 'big')
+
+    new_list = [None] * length  # Initialise a list with the correct size to avoid reallocations
+    for i in range(length):
+        new_list[i] = _deserialise(stream)
+
+    return new_list
+
+
+def serialise_dict(obj: Dict[Any, Any], stream: BytesIO):
+    if len(obj) > MAXIMUM_SIZE // 2:
+        raise ObjectTooLargeException
+
+    stream.write(
+        len(obj).to_bytes(2, 'big')
+    )
+
+    for key, value in obj.items():
+        _serialise(key, stream)
+        _serialise(value, stream)
+
+
+def deserialise_dict(stream: BytesIO) -> Dict[Any, Any]:
+    length = int.from_bytes(stream.read(2), 'big')
+
+    new_dict = {}
+    for _ in range(length):
+        key = _deserialise(stream)
+        value = _deserialise(stream)
+        new_dict[key] = value
+
+    return new_dict
+
+
+def serialise_set(obj: Set[Any], stream: BytesIO):
+    if len(obj) > MAXIMUM_SIZE:
+        raise ObjectTooLargeException
+
+    stream.write(
+        len(obj).to_bytes(2, 'big')
+    )
+
+    for item in obj:
+        _serialise(item, stream)
+
+
+def deserialise_set(stream: BytesIO) -> Set[Any]:
+    length = int.from_bytes(stream.read(2), 'big')
+
+    new_set = set()
+    for _ in range(length):
+        new_set.add(
+            _deserialise(stream)
+        )
+
+    return new_set
+
+
+def serialise_float(obj: float, stream: BytesIO):
+    stream.write(
+        struct.pack("d", obj)
+    )
+
+
+def deserialise_float(stream: BytesIO) -> float:
+    return struct.unpack(
+        "d",
+        stream.read(8)
+    )[0]
+
+
+def serialise_complex(obj: complex, stream: BytesIO):
+    serialise_float(obj.real, stream)
+    serialise_float(obj.imag, stream)
+
+
+def deserialise_complex(stream: BytesIO) -> complex:
+    real = deserialise_float(stream)
+    imag = deserialise_float(stream)
+    return complex(real, imag)
+
+
 discriminant_to_type = {
     0: None,  # indicates a custom type
     1: int,
     2: str,
     3: bool,
     4: tuple,
-    # 5: list,
-    # 6: dict,
-    # 7: set,
-    # 8: complex
+    5: list,
+    6: dict,
+    7: set,
+    8: complex,
+    9: float,
 }
 
 # Reverse keys and values for lookup in either direction
@@ -162,4 +260,9 @@ known_types: Dict[type, Tuple[Callable[[Any, BytesIO], None], Callable[[BytesIO]
     str: (serialise_str, deserialise_str),
     bool: (serialise_bool, deserialise_bool),
     tuple: (serialise_tuple, deserialise_tuple),
+    list: (serialise_list, deserialise_list),
+    dict: (serialise_dict, deserialise_dict),
+    set: (serialise_set, deserialise_set),
+    float: (serialise_float, deserialise_float),
+    complex: (serialise_complex, deserialise_complex),
 }

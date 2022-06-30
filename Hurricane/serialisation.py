@@ -283,6 +283,15 @@ def deserialise_frozenset(stream: BytesIO) -> frozenset:
     )
 
 
+def serialise_none(obj: None, stream: BytesIO):
+    # None is a singleton, no data is stored about it
+    return
+
+
+def deserialise_none(stream: BytesIO):
+    return None
+
+
 discriminant_to_type = {
     0: None,  # indicates a custom type
     1: int,
@@ -297,7 +306,7 @@ discriminant_to_type = {
     10: bytes,
     11: bytearray,
     12: frozenset,
-    # 13: type(None)  # The NoneType is not accessible otherwise in 3.8
+    13: type(None)  # The NoneType is not accessible otherwise in 3.8
 }
 
 # Reverse keys and values for lookup in either direction
@@ -317,4 +326,5 @@ known_types: Dict[type, Tuple[Callable[[Any, BytesIO], None], Callable[[BytesIO]
     bytes: (serialise_bytes, deserialise_bytes),
     bytearray: (serialise_bytearray, deserialise_bytearray),
     frozenset: (serialise_frozenset, deserialise_frozenset),
+    type(None): (serialise_none, deserialise_none),
 }

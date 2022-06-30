@@ -287,3 +287,29 @@ class TestBytearray:
             serialisation.serialise(
                 bytearray(b'a' * (serialisation.MAXIMUM_SIZE + 1))
             )
+
+
+class TestFrozenset:
+    def test_small(self):
+        se = frozenset({1, 2, 3})
+        serialised = serialisation.serialise(se)
+        assert serialisation.deserialise(serialised) == se
+
+    def test_heterogenous(self):
+        se = frozenset({2, 'abc', False})
+        serialised = serialisation.serialise(se)
+        assert serialisation.deserialise(serialised) == se
+
+    def test_large(self):
+        se = frozenset(range(serialisation.MAXIMUM_SIZE))
+        serialised = serialisation.serialise(se)
+        assert serialisation.deserialise(serialised) == se
+
+    def test_too_large(self):
+        se = frozenset(range(serialisation.MAXIMUM_SIZE + 1))
+        with pytest.raises(serialisation.ObjectTooLargeException):
+            serialisation.serialise(se)
+
+    def test_empty(self):
+        serialised = serialisation.serialise(frozenset())
+        assert serialisation.deserialise(serialised) == frozenset()

@@ -265,3 +265,25 @@ class TestBytes:
             serialisation.serialise(
                 b'a' * (serialisation.MAXIMUM_SIZE + 1)
             )
+
+
+class TestBytearray:
+    def test_small(self):
+        by = bytearray(b'agd')
+        serialised = serialisation.serialise(by)
+        assert serialisation.deserialise(serialised) == by
+
+    def test_large(self):
+        by = bytearray(b'abcd' * (serialisation.MAXIMUM_SIZE // 4))
+        serialised = serialisation.serialise(by)
+        assert serialisation.deserialise(serialised) == by
+
+    def test_empty(self):
+        serialised = serialisation.serialise(bytearray())
+        assert serialisation.deserialise(serialised) == bytearray()
+
+    def test_too_large(self):
+        with pytest.raises(serialisation.ObjectTooLargeException):
+            serialisation.serialise(
+                bytearray(b'a' * (serialisation.MAXIMUM_SIZE + 1))
+            )

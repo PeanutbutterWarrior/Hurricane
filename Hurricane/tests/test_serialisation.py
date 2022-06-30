@@ -94,7 +94,7 @@ class TestTuple:
         assert serialisation.deserialise(serialised) == tuple()
 
     def test_too_large(self):
-        tup = tuple(range(1, serialisation.MAXIMUM_SIZE + 5))
+        tup = tuple(range(0, serialisation.MAXIMUM_SIZE + 1))
         with pytest.raises(serialisation.ObjectTooLargeException):
             serialisation.serialise(tup)
 
@@ -123,6 +123,10 @@ class TestList:
         with pytest.raises(serialisation.ObjectTooLargeException):
             serialisation.serialise(li)
 
+    def test_empty(self):
+        serialised = serialisation.serialise([])
+        assert serialisation.deserialise(serialised) == []
+
 
 class TestDict:
     def test_small(self):
@@ -131,7 +135,12 @@ class TestDict:
         assert serialisation.deserialise(serialised) == di
 
     def test_heterogenous(self):
-        di = {1: True, False: 3, 'abc': 'cba', 'li': ['a', 'b', 'c']}
+        di = {
+            1: True,
+            False: 3,
+            'abc': 'cba',
+            'li': ['a', 'b', 'c']
+        }
         serialised = serialisation.serialise(di)
         assert serialisation.deserialise(serialised) == di
 
@@ -148,6 +157,10 @@ class TestDict:
 
         serialised = serialisation.serialise(di)
         assert serialisation.deserialise(serialised) == di
+
+    def test_empty(self):
+        serialised = serialisation.serialise({})
+        assert serialisation.deserialise(serialised) == {}
 
 
 class TestSet:
@@ -170,6 +183,10 @@ class TestSet:
         se = set(range(serialisation.MAXIMUM_SIZE + 1))
         with pytest.raises(serialisation.ObjectTooLargeException):
             serialisation.serialise(se)
+
+    def test_empty(self):
+        serialised = serialisation.serialise(set())
+        assert serialisation.deserialise(serialised) == set()
 
 
 class TestFloat:

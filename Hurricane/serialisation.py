@@ -254,6 +254,14 @@ def deserialise_bytes(stream: BytesIO) -> bytes:
     return stream.read(length)
 
 
+def serialise_bytearray(obj: bytearray, stream: BytesIO):
+    serialise_bytes(obj, stream)
+
+
+def deserialise_bytearray(stream: BytesIO):
+    return bytearray(deserialise_bytes(stream))
+
+
 discriminant_to_type = {
     0: None,  # indicates a custom type
     1: int,
@@ -266,7 +274,7 @@ discriminant_to_type = {
     8: complex,
     9: float,
     10: bytes,
-    # 11: bytearray,
+    11: bytearray,
     # 12: frozenset,
     # 13: type(None)  # The NoneType is not accessible otherwise in 3.8
 }
@@ -286,4 +294,5 @@ known_types: Dict[type, Tuple[Callable[[Any, BytesIO], None], Callable[[BytesIO]
     float: (serialise_float, deserialise_float),
     complex: (serialise_complex, deserialise_complex),
     bytes: (serialise_bytes, deserialise_bytes),
+    bytearray: (serialise_bytearray, deserialise_bytearray),
 }

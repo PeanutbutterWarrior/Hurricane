@@ -238,6 +238,22 @@ def deserialise_complex(stream: BytesIO) -> complex:
     return complex(real, imag)
 
 
+def serialise_bytes(obj: bytes, stream: BytesIO):
+    if len(obj) > MAXIMUM_SIZE:
+        raise ObjectTooLargeException
+
+    stream.write(
+        len(obj).to_bytes(2, 'big')
+    )
+
+    stream.write(obj)
+
+
+def deserialise_bytes(stream: BytesIO) -> bytes:
+    length = int.from_bytes(stream.read(2), 'big')
+    return stream.read(length)
+
+
 discriminant_to_type = {
     0: None,  # indicates a custom type
     1: int,
@@ -249,6 +265,10 @@ discriminant_to_type = {
     7: set,
     8: complex,
     9: float,
+    10: bytes,
+    # 11: bytearray,
+    # 12: frozenset,
+    # 13: type(None)  # The NoneType is not accessible otherwise in 3.8
 }
 
 # Reverse keys and values for lookup in either direction
@@ -265,4 +285,5 @@ known_types: Dict[type, Tuple[Callable[[Any, BytesIO], None], Callable[[BytesIO]
     set: (serialise_set, deserialise_set),
     float: (serialise_float, deserialise_float),
     complex: (serialise_complex, deserialise_complex),
+    bytes: (serialise_bytes, deserialise_bytes),
 }

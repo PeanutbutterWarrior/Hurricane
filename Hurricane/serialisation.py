@@ -1,4 +1,5 @@
 from typing import Any, Dict, Tuple, Callable, List, Set
+import importlib
 from io import BytesIO
 import struct
 
@@ -37,6 +38,7 @@ def dump(obj: Any, stream: BytesIO):
         serialiser(obj, stream)
     else:
         raise NotImplementedError
+        _serialise_object(obj, stream)
 
 
 def loads(data: bytes) -> Any:
@@ -55,6 +57,56 @@ def load(stream: BytesIO) -> Any:
             raise MalformedDataError(e)
     else:
         raise NotImplementedError
+        try:
+            return _deserialise_object(stream)
+        except Exception as e:
+            raise MalformedDataError(e)
+
+
+def _serialise_object(obj: Any, stream: BytesIO):
+    has_slots = getattr(obj, '__slots__', None) is not None
+    has_dict = getattr(obj, '__dict__', None) is not None
+
+    if not has_slots and not has_dict:
+        raise CannotBeSerialised(f"{type(obj)} object does not have __dict__ or __slots__")
+
+    stream.write(b'\x00')  # Custom class
+    stream.write(  # Used in deserialising to interpret the data as slots, dict, or both
+        (has_slots << 1 + has_dict)
+        .to_bytes(1, 'big')
+    )
+    _serialise_str(
+        obj.__qualname__,
+        stream,
+    )
+
+    if has_slots:
+        ...  # TODO
+
+    if has_dict:
+        _serialise_dict(obj.__dict__, stream)
+
+
+def _deserialise_object(stream: BytesIO) -> Any:
+    contents = int.from_bytes(
+        stream.read(1),
+        'big'
+    )
+    has_slots = bool(contents & 2)
+    has_dict = bool(contents & 1)
+
+    qualified_name = _deserialise_str(stream)
+    object_class = importlib.import_module(qualified_name)
+
+    new_object = object_class.__new__(object_class)
+
+    if has_slots:
+        ...
+
+    if has_dict:
+        new_object.__dict__ = _deserialise_dict(stream)
+
+    return new_object
 
 
 def _serialise_int(obj: int, stream: BytesIO):

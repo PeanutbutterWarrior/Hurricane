@@ -76,6 +76,10 @@ def _serialise_object(obj: Any, stream: BytesIO):
         .to_bytes(1, 'big')
     )
     _serialise_str(
+        obj.__module__,
+        stream,
+    )
+    _serialise_str(
         obj.__qualname__,
         stream,
     )
@@ -95,8 +99,10 @@ def _deserialise_object(stream: BytesIO) -> Any:
     has_slots = bool(contents & 2)
     has_dict = bool(contents & 1)
 
-    qualified_name = _deserialise_str(stream)
-    object_class = importlib.import_module(qualified_name)
+    module_name = _deserialise_str(stream)
+    class_name = _deserialise_str(stream)
+    module = importlib.import_module(module_name)
+    object_class = getattr(module, class_name)
 
     new_object = object_class.__new__(object_class)
 

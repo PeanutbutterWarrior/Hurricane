@@ -64,8 +64,8 @@ def load(stream: BytesIO) -> Any:
 
 
 def _serialise_object(obj: Any, stream: BytesIO):
-    has_slots = getattr(obj, '__slots__', None) is not None
-    has_dict = getattr(obj, '__dict__', None) is not None
+    has_slots = hasattr(obj, '__slots__')
+    has_dict = hasattr(obj, '__dict__')
 
     if not has_slots and not has_dict:
         raise CannotBeSerialised(f"{type(obj)} object does not have __dict__ or __slots__")
@@ -85,7 +85,15 @@ def _serialise_object(obj: Any, stream: BytesIO):
     )
 
     if has_slots:
-        ...  # TODO
+        for slot_name in obj.__slots__:
+            if hasattr(obj, slot_name):  # An entry in __slots__ does not guarantee the attribute is initialised
+                stream.write(b'\xFE')
+                dump(
+                    getattr(obj, slot_name),
+                    stream
+                )
+            else:
+                stream.write(b'\xFF')
 
     if has_dict:
         _serialise_dict(obj.__dict__, stream)
@@ -107,7 +115,13 @@ def _deserialise_object(stream: BytesIO) -> Any:
     new_object = object_class.__new__(object_class)
 
     if has_slots:
-        ...
+        for slot_name in new_object.__slots__:
+            if stream.read(1) == 254:
+                setattr(
+                    new_object,
+                    slot_name,
+                    load(stream)
+                )
 
     if has_dict:
         new_object.__dict__ = _deserialise_dict(stream)
@@ -365,7 +379,10 @@ _discriminant_to_type = {
     10: bytes,
     11: bytearray,
     12: frozenset,
-    13: type(None)  # The NoneType is not accessible otherwise in 3.8
+    13: type(None),  # The NoneType is not accessible otherwise in 3.8
+
+    254: ...,  # Reserved for use internally
+    255: ...,  # Reserved for use internally
 }
 
 # Reverse keys and values for lookup in either direction

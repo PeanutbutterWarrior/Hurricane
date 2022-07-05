@@ -1,3 +1,3 @@
 import pytest
 
-pytest.main(["--maxfail=2"])
+pytest.main(["--maxfail=5"])

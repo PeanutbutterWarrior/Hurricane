@@ -19,6 +19,12 @@ class MalformedDataError(Exception):
         self.caused_by = causing_exception
 
 
+class Serialisable:
+    # Marker class used to define extra objects which can be serialised
+    # Subclass this to mark a class as serialisable
+    pass
+
+
 class Serialiser:
     MAXIMUM_SIZE: int = 64 * 1024 - 1  # 64 KiB
 
@@ -33,9 +39,10 @@ class Serialiser:
                 .to_bytes(1, 'big')
             )
             serialiser(self, obj)
+        elif issubclass(type(obj), Serialisable):
+            self._serialise_object(obj)
         else:
-            raise NotImplementedError
-            self._serialise_object(obj, stream)
+            raise CannotBeSerialised(f"{type(obj)} does not inherit from serialisation.Serialisable")
 
     def get_data(self) -> bytes:
         return self.stream.getvalue()
@@ -213,9 +220,9 @@ class Deserialiser:
             except Exception as e:
                 raise MalformedDataError(e)
         else:
-            raise NotImplementedError
+            # Subclass check for Serialisable is inside _deserialise_object
             try:
-                return self._deserialise_object(stream)
+                return self._deserialise_object()
             except Exception as e:
                 raise MalformedDataError(e)
 
@@ -231,6 +238,9 @@ class Deserialiser:
         class_name = self._deserialise_str()
         module = importlib.import_module(module_name)
         object_class = getattr(module, class_name)
+
+        if not issubclass(object_class, Serialisable):
+            raise CannotBeSerialised(f"{object_class} does not inherit from serialisation.Serialisable")
 
         new_object = object_class.__new__(object_class)
 

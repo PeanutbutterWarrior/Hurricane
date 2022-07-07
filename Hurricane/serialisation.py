@@ -19,12 +19,6 @@ class MalformedDataError(Exception):
         self.caused_by = causing_exception
 
 
-class Serialisable:
-    # Marker class used to define extra objects which can be serialised
-    # Subclass this to mark a class as serialisable
-    pass
-
-
 class Serialiser:
     MAXIMUM_SIZE: int = 64 * 1024 - 1  # 64 KiB
 
@@ -39,10 +33,11 @@ class Serialiser:
                 .to_bytes(1, 'big')
             )
             serialiser(self, obj)
-        elif issubclass(type(obj), Serialisable):
+        elif type(obj) in _user_defined_serialisable_types:
             self._serialise_object(obj)
         else:
-            raise CannotBeSerialised(f"{type(obj)} does not inherit from serialisation.Serialisable")
+            raise CannotBeSerialised(f"{type(obj)} cannot be serialised. Add an @serialisation.make_serialisable "
+                                     f"decorator to the class definition")
 
     def get_data(self) -> bytes:
         return self.stream.getvalue()
@@ -60,7 +55,12 @@ class Serialiser:
                 .to_bytes(1, 'big')
         )
         self._serialise_str(obj.__module__)
-        self._serialise_str(obj.__qualname__)
+        if hasattr(type(obj), "__qualname__"):
+            self._serialise_str(type(obj).__qualname__)
+        elif hasattr(type(obj), "__name__"):
+            self._serialise_str(type(obj).__name__)
+        else:
+            raise CannotBeSerialised
 
         if has_slots:
             for slot_name in obj.__slots__:
@@ -220,7 +220,7 @@ class Deserialiser:
             except Exception as e:
                 raise MalformedDataError(e)
         else:
-            # Subclass check for Serialisable is inside _deserialise_object
+            # Serialisability check inside _deserialise_object
             try:
                 return self._deserialise_object()
             except Exception as e:
@@ -239,8 +239,9 @@ class Deserialiser:
         module = importlib.import_module(module_name)
         object_class = getattr(module, class_name)
 
-        if not issubclass(object_class, Serialisable):
-            raise CannotBeSerialised(f"{object_class} does not inherit from serialisation.Serialisable")
+        if object_class not in _user_defined_serialisable_types:
+            raise CannotBeSerialised(f"{object_class} cannot be deserialised into. Add an "
+                                     f"@serialisation.make_serialisable decorator to the class definition")
 
         new_object = object_class.__new__(object_class)
 
@@ -367,6 +368,16 @@ class Deserialiser:
         frozenset: _deserialise_frozenset,
         type(None): _deserialise_none,
     }
+
+
+_user_defined_serialisable_types = set()
+
+
+def make_serialisable(cls: type):
+    if cls in _type_to_discriminant or cls in _user_defined_serialisable_types:
+        raise TypeError(f"{cls} can already be serialised")
+    _user_defined_serialisable_types.add(cls)
+    return cls
 
 
 # These 4 public functions are named to match pickle, marshal, json, etc. 

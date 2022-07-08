@@ -51,8 +51,8 @@ class Serialiser:
 
         self.stream.write(b'\x00')  # Custom class
         self.stream.write(  # Used in deserialising to interpret the data as slots, dict, or both
-            (has_slots << 1 + has_dict)
-                .to_bytes(1, 'big')
+            (2 * has_slots + has_dict)
+            .to_bytes(1, 'big')
         )
         self._serialise_str(obj.__module__)
         if hasattr(type(obj), "__qualname__"):
@@ -247,7 +247,7 @@ class Deserialiser:
 
         if has_slots:
             for slot_name in new_object.__slots__:
-                if self.stream.read(1) == 254:
+                if self.stream.read(1) == b'\xFE':
                     setattr(
                         new_object,
                         slot_name,

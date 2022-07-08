@@ -76,19 +76,27 @@ def test_empty():
 def test_dict():
     instance = HasDict(5)
     serialised = serialisation.dumps(instance)
-    assert serialisation.loads(serialised) == instance
+    deserialised = serialisation.loads(serialised)
+    assert hasattr(deserialised, "dict_value")
+    assert deserialised == instance
 
 
 def test_slots():
     instance = HasSlots(12)
     serialised = serialisation.dumps(instance)
-    assert serialisation.loads(serialised) == instance
+    print(serialised)
+    deserialised = serialisation.loads(serialised)
+    assert hasattr(deserialised, "slots_value")
+    assert deserialised == instance
 
 
 def test_dict_and_slots():
     instance = HasDictAndSlots(12, 7)
     serialised = serialisation.dumps(instance)
-    assert serialisation.loads(serialised) == instance
+    deserialised = serialisation.loads(serialised)
+    assert hasattr(deserialised, "dict_value")
+    assert hasattr(deserialised, "slots_value")
+    assert deserialised == instance
 
 
 def test_class_value():

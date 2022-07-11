@@ -19,7 +19,7 @@ class Client:
         self.__socket_read_task = None
         self._client_disconnect_callback = client_disconnect_callback
 
-        self._groups: Set[Group] = set()
+        self._parent_groups: Set[Group] = set()
 
     async def _wait_for_read(self, callback: Callable[[Message], Coroutine]):
         while True:
@@ -42,11 +42,15 @@ class Client:
                 self._wait_for_read(callback)
             )
 
-    def add_to_group(self, group: Group):
-        self._groups.add(group)
+    def _join_group(self, group: Group):
+        self._parent_groups.add(group)
 
-    def remove_from_group(self, group: Group):
-        self._groups.remove(group)
+    def _leave_group(self, group: Group):
+        self._parent_groups.remove(group)
+
+    @property
+    def groups(self):
+        return self._parent_groups
 
     async def send(self, data: bytes):
         self.__tcp_writer.write(data)

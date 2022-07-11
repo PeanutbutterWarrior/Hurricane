@@ -1,7 +1,6 @@
-from Hurricane import Server
-from Hurricane.Message import Message
+import hurricane
 
-server = Server.Server()
+server = hurricane.server.Server()
 
 
 @server.on_new_connection
@@ -10,8 +9,9 @@ async def new_client(client):
 
 
 @server.on_receiving_message
-async def got_message(data: Message):
+async def got_message(data: hurricane.message.Message):
     print(f"Received {data.contents}")
+
 
 @server.on_client_disconnect
 async def client_disconnect(client):

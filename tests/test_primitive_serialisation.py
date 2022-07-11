@@ -1,4 +1,4 @@
-from Hurricane import serialisation
+from hurricane import serialisation
 import pytest
 
 

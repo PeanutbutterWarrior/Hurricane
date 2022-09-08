@@ -7,7 +7,7 @@ import struct
 from Hurricane import serialisation
 
 if TYPE_CHECKING:
-    from Hurricane import Server
+    from Hurricane import server
 
 
 class Message:
@@ -15,7 +15,7 @@ class Message:
 
     def __init__(self,
                  contents: Any,
-                 author: Server.Client,
+                 author: server.Client,
                  sent_at: datetime,
                  received_at: datetime
                  ):
@@ -23,10 +23,10 @@ class Message:
         self.contents: Any = contents
         self.sent_at: datetime = sent_at
         self.received_at: datetime = received_at
-        self.author: Server.Client = author
+        self.author: server.Client = author
 
     @staticmethod
-    async def read_stream(author: Server.Client, connection: StreamReader) -> Message:
+    async def read_stream(author: server.Client, connection: StreamReader) -> Message:
         header = await connection.readexactly(Message.HEADER_SIZE)
         message_size, time_sent = struct.unpack('!Id', header)
         received_data = await connection.readexactly(message_size)

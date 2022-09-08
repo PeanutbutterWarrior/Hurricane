@@ -1,5 +1,5 @@
 import socket
-from Hurricane.client import receive_message, send_message
+from Hurricane.client_functions import receive_message, send_message
 
 
 message = "hello server"

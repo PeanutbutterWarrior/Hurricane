@@ -1,7 +1,7 @@
-from Hurricane import Server
-from Hurricane.Message import Message
+from Hurricane import server
+from Hurricane.message import Message
 
-server = Server.Server()
+server = server.Server()
 
 
 @server.on_new_connection

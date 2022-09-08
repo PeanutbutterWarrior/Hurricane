@@ -1,9 +1,13 @@
 from __future__ import annotations
-from typing import List, Awaitable, Callable, Optional, Coroutine
+
+import struct
+from datetime import datetime
+from typing import List, Awaitable, Callable, Optional, Coroutine, Any
 
 import asyncio
 
 from Hurricane.Message import Message
+from Hurricane import serialisation
 
 # Used to keep a reference to any tasks
 # asyncio.create_task only creates a weak reference to the task
@@ -74,7 +78,7 @@ class Client:
     async def _wait_for_read(self, callback: Callable[[Message], Coroutine]):
         while True:
             try:
-                message = await Message.from_StreamReader(self, self.__tcp_reader)
+                message = await Message.read_stream(self, self.__tcp_reader)
             except asyncio.IncompleteReadError:
                 # Received an empty string from the socket
                 # Nothing more will be received from the socket
@@ -92,7 +96,10 @@ class Client:
                 self._wait_for_read(callback)
             )
 
-    async def send(self, data: bytes):
+    async def send(self, message: Any):
+        data = serialisation.dumps(message)
+        header = struct.pack('!Id', len(data), datetime.now().timestamp())
+        self.__tcp_writer.write(header)
         self.__tcp_writer.write(data)
         await self.__tcp_writer.drain()
 

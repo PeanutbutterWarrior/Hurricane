@@ -12,6 +12,8 @@ async def new_client(client):
 @server.on_receiving_message
 async def got_message(data: Message):
     print(f"Received {data.contents}")
+    await data.author.send(f"Received {data.contents} successfully")
+
 
 @server.on_client_disconnect
 async def client_disconnect(client):

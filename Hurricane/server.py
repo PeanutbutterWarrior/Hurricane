@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List, Awaitable, Callable, Optional, Coroutine
+from typing import Awaitable, Callable, Optional, Coroutine
 
 import asyncio
 
@@ -17,7 +17,7 @@ task_references = set()
 
 class Server:
     def __init__(self):
-        self._clients: List[Client] = []
+        self._clients: list[Client] = []
         self._new_connection_callback: Optional[Callable[[Client], Coroutine]] = None
         self._received_message_callback: Optional[Callable[[Message], Coroutine]] = None
         self._client_disconnect_callback: Optional[Callable[[Client], Coroutine]] = None

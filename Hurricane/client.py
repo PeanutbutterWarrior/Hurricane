@@ -18,6 +18,11 @@ class Client:
         self.__tcp_writer: asyncio.StreamWriter = tcp_writer
         self.__socket_read_task = None
         self._client_disconnect_callback = client_disconnect_callback
+        self._handshake_complete: bool = False
+        self.peer_address: tuple[str, int] = tcp_writer.transport.get_extra_info("peername")
+
+    def __hash__(self):
+        return id(self)  # TODO replace with uuid when implemented
 
     async def _wait_for_read(self, callback: Callable[[Message], Coroutine]):
         while True:
@@ -29,6 +34,7 @@ class Client:
                 # Assume that the client is no longer listening
                 break
             asyncio.create_task(callback(message))
+
         await self.shutdown()
         if self._client_disconnect_callback:
             await self._client_disconnect_callback(self)

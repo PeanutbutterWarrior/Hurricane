@@ -1,28 +1,47 @@
 import asyncio
+from enum import Enum
 import struct
 from typing import Any, Callable, Coroutine
 from datetime import datetime
+from uuid import UUID
 
 from Hurricane.message import Message
 from Hurricane import serialisation
+
+
+class ClientState(Enum):
+    OPEN = 1
+    CLOSED = 2
 
 
 class Client:
     def __init__(self,
                  tcp_reader: asyncio.StreamReader,
                  tcp_writer: asyncio.StreamWriter,
+                 uuid: UUID,
                  client_disconnect_callback,
                  ):
 
         self.__tcp_reader: asyncio.StreamReader = tcp_reader
         self.__tcp_writer: asyncio.StreamWriter = tcp_writer
+        self.__state: ClientState = ClientState.OPEN
+        self.__uuid: UUID = uuid
         self.__socket_read_task = None
-        self._client_disconnect_callback = client_disconnect_callback
-        self._handshake_complete: bool = False
+
+        self._client_disconnect_callback: Callable[[Client], Coroutine] = client_disconnect_callback
+
         self.peer_address: tuple[str, int] = tcp_writer.transport.get_extra_info("peername")
 
     def __hash__(self):
-        return id(self)  # TODO replace with uuid when implemented
+        return self.__uuid.int
+
+    @property
+    def state(self) -> ClientState:
+        return self.__state
+
+    @property
+    def uuid(self) -> UUID:
+        return self.__uuid
 
     async def _wait_for_read(self, callback: Callable[[Message], Coroutine]):
         while True:
@@ -54,5 +73,22 @@ class Client:
         await self.__tcp_writer.drain()
 
     async def shutdown(self):
+        self.__state = ClientState.CLOSED
         self.__tcp_writer.close()
         await self.__tcp_writer.wait_closed()
+
+
+class ClientBuilder:
+    def __init__(self):
+        self.reader: asyncio.StreamReader | None = None
+        self.writer: asyncio.StreamWriter | None = None
+        self.disconnect_callback: Callable[[Client], Coroutine] | None = None
+        self.uuid: UUID | None = None
+
+    def construct(self) -> Client:
+        return Client(
+            self.reader,
+            self.writer,
+            self.uuid,
+            self.disconnect_callback,
+        )

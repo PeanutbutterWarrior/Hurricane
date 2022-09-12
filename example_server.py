@@ -3,21 +3,20 @@ from Hurricane.message import Message
 
 server = server.Server()
 
-names= {}
+names = {}
 
 
 @server.on_new_connection
 async def new_client(client):
-    print("New client connected")
+    print(f"New client connected with id {client.uuid}")
 
 
 @server.on_receiving_message
 async def got_message(data: Message):
-    print(f"Received {data.contents} from {names[data.author]}")
     if data.author not in names:
         names[data.author] = data.contents
-    else:
-        await data.author.send(f"Received {data.contents} successfully")
+    await data.author.send(f"Received {data.contents} successfully")
+    print(f"Received {data.contents} from {names[data.author]}")
 
 
 @server.on_client_disconnect

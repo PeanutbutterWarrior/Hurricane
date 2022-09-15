@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from typing import Awaitable, Callable, Optional, Coroutine
+from typing import Awaitable, Callable, Coroutine
 
 import asyncio
+from asyncio import StreamReader, StreamWriter
 from uuid import UUID
 
 from Hurricane.message import Message
@@ -16,28 +17,45 @@ task_references = set()
 
 
 class Server:
-    def __init__(self):
-        self._clients: list[Client] = []
-        self._new_connection_callback: Optional[Callable[[Client], Coroutine]] = None
-        self._received_message_callback: Optional[Callable[[Message], Coroutine]] = None
-        self._client_disconnect_callback: Optional[Callable[[Client], Coroutine]] = None
+    def __init__(self, timeout=30):
+        self._clients: dict[UUID, Client] = {}
+        self._new_connection_callback: Callable[[Client], Coroutine] | None = None
+        self._received_message_callback: Callable[[Message], Coroutine] | None = None
+        self._client_disconnect_callback: Callable[[Client], Coroutine] | None = None
+        self._client_reconnect_callback: Callable[[Client], Coroutine] | None = None
+        self.reconnect_timeout: int = timeout
 
-    def __new_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
+    def __new_client(self, reader: StreamReader, writer: StreamWriter):
         new_client = ClientBuilder()
         new_client.reader = reader
         new_client.writer = writer
         new_client.disconnect_callback = self._client_disconnect_callback
-        asyncio.create_task(self.__client_setup(reader, new_client))
+        new_client.reconnect_timeout = self.reconnect_timeout
 
-    async def __client_setup(self, tcp_reader: asyncio.StreamReader, client_builder: ClientBuilder):
+        new_task = asyncio.create_task(self.__client_setup(reader, new_client))
+        task_references.add(new_task)
+        new_task.add_done_callback(task_references.remove)
+
+    async def __client_setup(self, tcp_reader: StreamReader, client_builder: ClientBuilder):
         uuid = await tcp_reader.readexactly(16)
         client_builder.uuid = UUID(bytes=uuid)
 
+        if client_builder.uuid in self._clients:
+            # Client is reconnecting
+            client = self._clients[client_builder.uuid]
+            try:
+                client.reconnect(client_builder.reader, client_builder.writer)
+            except ConnectionError:
+                pass
+            else:
+                if self._client_reconnect_callback:
+                    await self._client_reconnect_callback(client)
+                return
+
         client = client_builder.construct()
-        self._clients.append(client)
+        self._clients[client.uuid] = client
 
         await self._new_connection_callback(client)
-
         client.start_receiving(self._received_message_callback)
 
     def start(self, host, port):
@@ -57,7 +75,14 @@ class Server:
         return coro
     
     def on_client_disconnect(self, coro: Callable[[Client], Awaitable]) -> Callable[[Client], Awaitable]:
-        self._client_disconnect_callback = coro
+        async def wrapper(client: Client):
+            del self._clients[client.uuid]
+            await coro(client)
+        self._client_disconnect_callback = wrapper
+        return wrapper
+
+    def on_client_reconnect(self, coro: Callable[[Client], Awaitable]) -> Callable[[Client], Awaitable]:
+        self._client_reconnect_callback = coro
         return coro
 
 

@@ -12,7 +12,7 @@ from Hurricane import serialisation
 
 class ClientState(Enum):
     OPEN = 1
-    DISCONNECTED = 2
+    RECONNECTING = 2
     CLOSED = 3
 
 
@@ -31,6 +31,7 @@ class Client:
         self.__uuid: UUID = uuid
         self.__socket_read_task = None
         self.__reconnect_wait_task = None
+        self.__message_queue = []
 
         self._client_disconnect_callback: Callable[[Client], Coroutine] = client_disconnect_callback
 
@@ -57,7 +58,7 @@ class Client:
 
                 # EOF was received, nothing more can be read
                 # Assume that the client has stopped listening
-                self.__state = ClientState.DISCONNECTED
+                self.__state = ClientState.RECONNECTING
 
                 self.__reconnect_wait_task = asyncio.create_task(asyncio.sleep(self.reconnect_timeout))
                 try:
@@ -84,7 +85,7 @@ class Client:
                 self._wait_for_read(callback)
             )
     
-    def reconnect(self, tcp_reader: StreamReader, tcp_writer: StreamWriter):
+    async def reconnect(self, tcp_reader: StreamReader, tcp_writer: StreamWriter):
         if self.__state == ClientState.CLOSED:
             # This has been scheduled before self.shutdown(), but after the read loop has been exited
             # Reconnection is not possible
@@ -95,7 +96,14 @@ class Client:
         self.__reconnect_wait_task.cancel()
         self.__state = ClientState.OPEN
 
+        for message in self.__message_queue:
+            await self.send(message)
+        self.__message_queue.clear()
+
     async def send(self, message: Any):
+        if self.state == ClientState.RECONNECTING:
+            self.__message_queue.append(message)
+            return
         data = serialisation.dumps(message)
         header = struct.pack('!Id', len(data), datetime.now().timestamp())
         self.__tcp_writer.write(header)

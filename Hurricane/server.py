@@ -44,7 +44,7 @@ class Server:
             # Client is reconnecting
             client = self._clients[client_builder.uuid]
             try:
-                client.reconnect(client_builder.reader, client_builder.writer)
+                await client.reconnect(client_builder.reader, client_builder.writer)
             except ConnectionError:
                 pass
             else:

@@ -24,6 +24,7 @@ async def got_message(data: Message):
     if data.contents == "clients":
         pprint(server._clients)
 
+
 @server.on_client_disconnect
 async def client_disconnect(client):
     print(f"Client {client.uuid} disconnected")
@@ -32,5 +33,6 @@ async def client_disconnect(client):
 @server.on_client_reconnect
 async def client_reconnect(client):
     print(f"Client {client.uuid} reconnected")
+
 
 server.start("0.0.0.0", 65432)

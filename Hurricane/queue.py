@@ -32,4 +32,3 @@ class Queue(Generic[T]):
 
         await self._has_item.wait()
         return self.pop()
-

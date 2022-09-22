@@ -13,13 +13,14 @@ if TYPE_CHECKING:
 class Message:
     HEADER_SIZE = 12
 
-    def __init__(self,
-                 contents: Any,
-                 author: server.Client,
-                 sent_at: datetime,
-                 received_at: datetime
-                 ):
-        
+    def __init__(
+        self,
+        contents: Any,
+        author: server.Client,
+        sent_at: datetime,
+        received_at: datetime,
+    ):
+
         self.contents: Any = contents
         self.sent_at: datetime = sent_at
         self.received_at: datetime = received_at
@@ -28,7 +29,7 @@ class Message:
     @staticmethod
     async def read_stream(author: server.Client, connection: StreamReader) -> Message:
         header = await connection.readexactly(Message.HEADER_SIZE)
-        message_size, time_sent = struct.unpack('!Id', header)
+        message_size, time_sent = struct.unpack("!Id", header)
         received_data = await connection.readexactly(message_size)
 
         time_received = datetime.now()

@@ -19,7 +19,7 @@ class HasDict:
 
 @serialisation.make_serialisable
 class HasSlots:
-    __slots__ = ('slots_value',)
+    __slots__ = ("slots_value",)
 
     def __init__(self, a):
         self.slots_value = a
@@ -38,7 +38,7 @@ class HasSlots:
 
 @serialisation.make_serialisable
 class HasDictAndSlots:
-    __slots__ = ('__dict__', 'slots_value')
+    __slots__ = ("__dict__", "slots_value")
 
     def __init__(self, a, b):
         self.slots_value = a
@@ -48,7 +48,10 @@ class HasDictAndSlots:
         if type(other) is not HasDictAndSlots:
             return False
 
-        return self.slots_value == other.slots_value and self.dict_value == other.dict_value
+        return (
+            self.slots_value == other.slots_value
+            and self.dict_value == other.dict_value
+        )
 
 
 @serialisation.make_serialisable

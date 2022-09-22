@@ -15,4 +15,3 @@ while True:
             print("Message sent")
             reply, sent_at, received_at = receive_message(s)
             print(f'"{reply}" received at {received_at}, sent at {sent_at}')
-

@@ -33,54 +33,54 @@ class TestInt:
 
 class TestStr:
     def test_small(self):
-        message = 'Hello Serialiser'
+        message = "Hello Serialiser"
         serialised = serialisation.dumps(message)
-        assert serialised == b'\x02\x00\x10Hello Serialiser'
+        assert serialised == b"\x02\x00\x10Hello Serialiser"
         assert serialisation.loads(serialised) == message
 
     def test_large(self):
-        message = 'testing' * 1000
+        message = "testing" * 1000
         serialised = serialisation.dumps(message)
         assert serialisation.loads(serialised) == message
 
     def test_empty(self):
-        message = ''
+        message = ""
         serialised = serialisation.dumps(message)
-        assert serialised == b'\x02\x00\x00'
+        assert serialised == b"\x02\x00\x00"
         assert serialisation.loads(serialised) == message
 
     def test_utf8(self):
-        message = 'Њଛp!\x00▰👋'
+        message = "Њଛp!\x00▰👋"
         serialised = serialisation.dumps(message)
         assert serialisation.loads(serialised) == message
 
     def test_malformed_utf8(self):
-        malformed_data = b'\x02\x00\x03\xE2\x06\xB0'
+        malformed_data = b"\x02\x00\x03\xE2\x06\xB0"
         with pytest.raises(serialisation.MalformedDataError):
             serialisation.loads(malformed_data)
 
     def test_wrong_size(self):
-        malformed = b'\x02\x00\x05abc'
-        assert serialisation.loads(malformed) == 'abc'
-        malformed = b'\x02\x00\x02abc'
-        assert serialisation.loads(malformed) == 'ab'
+        malformed = b"\x02\x00\x05abc"
+        assert serialisation.loads(malformed) == "abc"
+        malformed = b"\x02\x00\x02abc"
+        assert serialisation.loads(malformed) == "ab"
 
 
 class TestBool:
     def test_true(self):
         serialised = serialisation.dumps(True)
-        assert serialised == b'\x03\x01'
+        assert serialised == b"\x03\x01"
         assert serialisation.loads(serialised) is True
 
     def test_false(self):
         serialised = serialisation.dumps(False)
-        assert serialised == b'\x03\x00'
+        assert serialised == b"\x03\x00"
         assert serialisation.loads(serialised) is False
 
 
 class TestTuple:
     def test_small(self):
-        tup = (1, 'a', True)
+        tup = (1, "a", True)
         serialised = serialisation.dumps(tup)
         assert serialisation.loads(serialised) == tup
 
@@ -103,19 +103,25 @@ class TestList:
     def test_small_homogenous(self):
         li = [2, 3, 1]
         serialised = serialisation.dumps(li)
-        assert serialised == b'\x05\x00\x03' + b''.join(serialisation.dumps(i) for i in li)
+        assert serialised == b"\x05\x00\x03" + b"".join(
+            serialisation.dumps(i) for i in li
+        )
         assert serialisation.loads(serialised) == li
 
     def test_small_heterogenous(self):
-        li = [1, 'bagel', False]
+        li = [1, "bagel", False]
         serialised = serialisation.dumps(li)
-        assert serialised == b'\x05\x00\x03' + b''.join(serialisation.dumps(i) for i in li)
+        assert serialised == b"\x05\x00\x03" + b"".join(
+            serialisation.dumps(i) for i in li
+        )
         assert serialisation.loads(serialised) == li
 
     def test_large(self):
         li = list(range(0, serialisation.MAXIMUM_SIZE))
         serialised = serialisation.dumps(li)
-        assert serialised == b'\x05\xff\xff' + b''.join(serialisation.dumps(i) for i in li)
+        assert serialised == b"\x05\xff\xff" + b"".join(
+            serialisation.dumps(i) for i in li
+        )
         assert serialisation.loads(serialised) == li
 
     def test_too_large(self):
@@ -135,12 +141,7 @@ class TestDict:
         assert serialisation.loads(serialised) == di
 
     def test_heterogenous(self):
-        di = {
-            1: True,
-            False: 3,
-            'abc': 'cba',
-            'li': ['a', 'b', 'c']
-        }
+        di = {1: True, False: 3, "abc": "cba", "li": ["a", "b", "c"]}
         serialised = serialisation.dumps(di)
         assert serialisation.loads(serialised) == di
 
@@ -151,8 +152,8 @@ class TestDict:
 
     def test_nested(self):
         di = {
-            1: {'a': 1, 'b': 1},
-            2: {'c': 2, 'd': 2},
+            1: {"a": 1, "b": 1},
+            2: {"c": 2, "d": 2},
         }
 
         serialised = serialisation.dumps(di)
@@ -170,7 +171,7 @@ class TestSet:
         assert serialisation.loads(serialised) == se
 
     def test_heterogenous(self):
-        se = {2, 'abc', False}
+        se = {2, "abc", False}
         serialised = serialisation.dumps(se)
         assert serialisation.loads(serialised) == se
 
@@ -247,34 +248,32 @@ class TestComplex:
 
 class TestBytes:
     def test_small(self):
-        by = b'agd'
+        by = b"agd"
         serialised = serialisation.dumps(by)
         assert serialisation.loads(serialised) == by
 
     def test_large(self):
-        by = b'abcd' * (serialisation.MAXIMUM_SIZE // 4)
+        by = b"abcd" * (serialisation.MAXIMUM_SIZE // 4)
         serialised = serialisation.dumps(by)
         assert serialisation.loads(serialised) == by
 
     def test_empty(self):
-        serialised = serialisation.dumps(b'')
-        assert serialisation.loads(serialised) == b''
+        serialised = serialisation.dumps(b"")
+        assert serialisation.loads(serialised) == b""
 
     def test_too_large(self):
         with pytest.raises(serialisation.ObjectTooLargeException):
-            serialisation.dumps(
-                b'a' * (serialisation.MAXIMUM_SIZE + 1)
-            )
+            serialisation.dumps(b"a" * (serialisation.MAXIMUM_SIZE + 1))
 
 
 class TestBytearray:
     def test_small(self):
-        by = bytearray(b'agd')
+        by = bytearray(b"agd")
         serialised = serialisation.dumps(by)
         assert serialisation.loads(serialised) == by
 
     def test_large(self):
-        by = bytearray(b'abcd' * (serialisation.MAXIMUM_SIZE // 4))
+        by = bytearray(b"abcd" * (serialisation.MAXIMUM_SIZE // 4))
         serialised = serialisation.dumps(by)
         assert serialisation.loads(serialised) == by
 
@@ -284,9 +283,7 @@ class TestBytearray:
 
     def test_too_large(self):
         with pytest.raises(serialisation.ObjectTooLargeException):
-            serialisation.dumps(
-                bytearray(b'a' * (serialisation.MAXIMUM_SIZE + 1))
-            )
+            serialisation.dumps(bytearray(b"a" * (serialisation.MAXIMUM_SIZE + 1)))
 
 
 class TestFrozenset:
@@ -296,7 +293,7 @@ class TestFrozenset:
         assert serialisation.loads(serialised) == se
 
     def test_heterogenous(self):
-        se = frozenset({2, 'abc', False})
+        se = frozenset({2, "abc", False})
         serialised = serialisation.dumps(se)
         assert serialisation.loads(serialised) == se
 

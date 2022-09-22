@@ -19,13 +19,14 @@ class ClientState(Enum):
 
 
 class Client:
-    def __init__(self,
-                 tcp_reader: StreamReader,
-                 tcp_writer: StreamWriter,
-                 uuid: UUID,
-                 client_disconnect_callback,
-                 reconnect_timeout: int,
-                 ):
+    def __init__(
+        self,
+        tcp_reader: StreamReader,
+        tcp_writer: StreamWriter,
+        uuid: UUID,
+        client_disconnect_callback,
+        reconnect_timeout: int,
+    ):
 
         self.__tcp_reader: StreamReader = tcp_reader
         self.__tcp_writer: StreamWriter = tcp_writer
@@ -38,9 +39,13 @@ class Client:
         self.__incoming_message_queue: Queue[Message] = Queue()
         self.__reconnect_event: Event = Event()
 
-        self._client_disconnect_callback: Callable[[Client], Coroutine] = client_disconnect_callback
+        self._client_disconnect_callback: Callable[
+            [Client], Coroutine
+        ] = client_disconnect_callback
 
-        self.peer_address: tuple[str, int] = tcp_writer.transport.get_extra_info("peername")
+        self.peer_address: tuple[str, int] = tcp_writer.transport.get_extra_info(
+            "peername"
+        )
         self.reconnect_timeout = reconnect_timeout
 
     def __hash__(self):
@@ -64,24 +69,28 @@ class Client:
                 # Assume that the client has stopped listening
                 self.__reconnect_event.clear()
                 self.__state = ClientState.RECONNECTING
-                self.__disconnect_task_handle = asyncio.get_running_loop().call_later(self.reconnect_timeout, self.shutdown)
+                self.__disconnect_task_handle = asyncio.get_running_loop().call_later(
+                    self.reconnect_timeout, self.shutdown
+                )
                 await self.__reconnect_event.wait()
 
-    async def _dispatch_messages_to_callback(self, callback: Callable[[Message], Coroutine]):
+    async def _dispatch_messages_to_callback(
+        self, callback: Callable[[Message], Coroutine]
+    ):
         while True:
             message = await self.__incoming_message_queue.async_pop()
             try:
                 await callback(message)
             except Exception as e:
-                print("error: ", e) # TODO deal with
+                print("error: ", e)  # TODO deal with
 
     def start_receiving(self, callback: Callable[[Message], Coroutine]):
         if not self.__socket_read_task:
-            self.__socket_read_task = asyncio.create_task(
-                self._read_from_socket()
+            self.__socket_read_task = asyncio.create_task(self._read_from_socket())
+            self.__message_dispatch_task = asyncio.create_task(
+                self._dispatch_messages_to_callback(callback)
             )
-            self.__message_dispatch_task = asyncio.create_task(self._dispatch_messages_to_callback(callback))
-    
+
     async def reconnect(self, tcp_reader: StreamReader, tcp_writer: StreamWriter):
         self.__tcp_reader = tcp_reader
         self.__tcp_writer = tcp_writer
@@ -98,7 +107,7 @@ class Client:
             self.__outgoing_message_queue.append(message)
             return
         data = serialisation.dumps(message)
-        header = struct.pack('!Id', len(data), datetime.now().timestamp())
+        header = struct.pack("!Id", len(data), datetime.now().timestamp())
         self.__tcp_writer.write(header)
         self.__tcp_writer.write(data)
         await self.__tcp_writer.drain()
@@ -114,7 +123,9 @@ class Client:
         self.__message_dispatch_task.cancel()
         self.__message_dispatch_task = None
 
-        asyncio.create_task(self._client_disconnect_callback(self))  # TODO keep reference, maybe delegate to Server?
+        asyncio.create_task(
+            self._client_disconnect_callback(self)
+        )  # TODO keep reference, maybe delegate to Server?
 
 
 class ClientBuilder:

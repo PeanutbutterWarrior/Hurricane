@@ -36,7 +36,9 @@ class Server:
         task_references.add(new_task)
         new_task.add_done_callback(task_references.remove)
 
-    async def __client_setup(self, tcp_reader: StreamReader, client_builder: ClientBuilder):
+    async def __client_setup(
+        self, tcp_reader: StreamReader, client_builder: ClientBuilder
+    ):
         uuid = await tcp_reader.readexactly(16)
         client_builder.uuid = UUID(bytes=uuid)
 
@@ -66,22 +68,31 @@ class Server:
 
         asyncio.run(runner())
 
-    def on_new_connection(self, coro: Callable[[Client], Awaitable]) -> Callable[[Client], Awaitable]:
+    def on_new_connection(
+        self, coro: Callable[[Client], Awaitable]
+    ) -> Callable[[Client], Awaitable]:
         self._new_connection_callback = coro
         return coro
 
-    def on_receiving_message(self, coro: Callable[[Message], Awaitable]) -> Callable[[Message], Awaitable]:
+    def on_receiving_message(
+        self, coro: Callable[[Message], Awaitable]
+    ) -> Callable[[Message], Awaitable]:
         self._received_message_callback = coro
         return coro
-    
-    def on_client_disconnect(self, coro: Callable[[Client], Awaitable]) -> Callable[[Client], Awaitable]:
+
+    def on_client_disconnect(
+        self, coro: Callable[[Client], Awaitable]
+    ) -> Callable[[Client], Awaitable]:
         async def wrapper(client: Client):
             del self._clients[client.uuid]
             await coro(client)
+
         self._client_disconnect_callback = wrapper
         return wrapper
 
-    def on_client_reconnect(self, coro: Callable[[Client], Awaitable]) -> Callable[[Client], Awaitable]:
+    def on_client_reconnect(
+        self, coro: Callable[[Client], Awaitable]
+    ) -> Callable[[Client], Awaitable]:
         self._client_reconnect_callback = coro
         return coro
 

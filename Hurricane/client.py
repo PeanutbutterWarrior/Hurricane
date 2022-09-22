@@ -1,5 +1,6 @@
 import asyncio
 from asyncio import StreamReader, StreamWriter
+from asyncio.locks import Event
 from enum import Enum
 import struct
 from typing import Any, Callable, Coroutine
@@ -8,6 +9,7 @@ from uuid import UUID
 
 from Hurricane.message import Message
 from Hurricane import serialisation
+from Hurricane.queue import Queue
 
 
 class ClientState(Enum):
@@ -30,8 +32,11 @@ class Client:
         self.__state: ClientState = ClientState.OPEN
         self.__uuid: UUID = uuid
         self.__socket_read_task = None
-        self.__reconnect_wait_task = None
-        self.__message_queue = []
+        self.__disconnect_task_handle = None
+        self.__message_dispatch_task = None
+        self.__outgoing_message_queue = []  # TODO replace with queue class
+        self.__incoming_message_queue: Queue[Message] = Queue()
+        self.__reconnect_event: Event = Event()
 
         self._client_disconnect_callback: Callable[[Client], Coroutine] = client_disconnect_callback
 
@@ -49,60 +54,48 @@ class Client:
     def uuid(self) -> UUID:
         return self.__uuid
 
-    async def _wait_for_read(self, callback: Callable[[Message], Coroutine]):
+    async def _read_from_socket(self):
         while True:
             try:
                 message = await Message.read_stream(self, self.__tcp_reader)
-            except asyncio.IncompleteReadError:
-                # TODO do not drop exception and use partial read when reconnected
-
+                self.__incoming_message_queue.push(message)
+            except asyncio.IncompleteReadError:  # TODO do not drop exception and use partial read when reconnected
                 # EOF was received, nothing more can be read
                 # Assume that the client has stopped listening
+                self.__reconnect_event.clear()
                 self.__state = ClientState.RECONNECTING
+                self.__disconnect_task_handle = asyncio.get_running_loop().call_later(self.reconnect_timeout, self.shutdown)
+                await self.__reconnect_event.wait()
 
-                self.__reconnect_wait_task = asyncio.create_task(asyncio.sleep(self.reconnect_timeout))
-                try:
-                    await self.__reconnect_wait_task
-                except asyncio.CancelledError:
-                    # Client.reconnect has been called, no action needed
-                    self.__reconnect_wait_task = None
-                else:
-                    # Client did not reconnect within the timeout
-                    break
-            else:
-                asyncio.create_task(callback(message))
-        
-        # This must be set here to avoid Client.reconnect failing silently
-        # If it waited for the event loop to schedule self.shutdown(), another coroutine could call Client.reconnect
-        # but the reading loop would not be re-entered, disconnecting the client
-        self.__state = ClientState.CLOSED
-        await self.shutdown()
-        self.__socket_read_task = None
+    async def _dispatch_messages_to_callback(self, callback: Callable[[Message], Coroutine]):
+        while True:
+            message = await self.__incoming_message_queue.async_pop()
+            try:
+                await callback(message)
+            except Exception as e:
+                print("error: ", e) # TODO deal with
 
     def start_receiving(self, callback: Callable[[Message], Coroutine]):
         if not self.__socket_read_task:
             self.__socket_read_task = asyncio.create_task(
-                self._wait_for_read(callback)
+                self._read_from_socket()
             )
+            self.__message_dispatch_task = asyncio.create_task(self._dispatch_messages_to_callback(callback))
     
     async def reconnect(self, tcp_reader: StreamReader, tcp_writer: StreamWriter):
-        if self.__state == ClientState.CLOSED:
-            # This has been scheduled before self.shutdown(), but after the read loop has been exited
-            # Reconnection is not possible
-            raise ConnectionError
-
         self.__tcp_reader = tcp_reader
         self.__tcp_writer = tcp_writer
-        self.__reconnect_wait_task.cancel()
+        self.__disconnect_task_handle.cancel()
         self.__state = ClientState.OPEN
 
-        for message in self.__message_queue:
+        for message in self.__outgoing_message_queue:
             await self.send(message)
-        self.__message_queue.clear()
+        self.__outgoing_message_queue.clear()
+        self.__reconnect_event.set()
 
     async def send(self, message: Any):
         if self.state == ClientState.RECONNECTING:
-            self.__message_queue.append(message)
+            self.__outgoing_message_queue.append(message)
             return
         data = serialisation.dumps(message)
         header = struct.pack('!Id', len(data), datetime.now().timestamp())
@@ -110,10 +103,18 @@ class Client:
         self.__tcp_writer.write(data)
         await self.__tcp_writer.drain()
 
-    async def shutdown(self):
+    async def receive(self):
+        return await self.__incoming_message_queue.async_pop()
+
+    def shutdown(self):
         self.__state = ClientState.CLOSED
         self.__tcp_writer.close()
-        await asyncio.gather(self.__tcp_writer.wait_closed(), self._client_disconnect_callback(self))
+        self.__socket_read_task.cancel()
+        self.__socket_read_task = None
+        self.__message_dispatch_task.cancel()
+        self.__message_dispatch_task = None
+
+        asyncio.create_task(self._client_disconnect_callback(self))  # TODO keep reference, maybe delegate to Server?
 
 
 class ClientBuilder:

@@ -35,7 +35,7 @@ class Client:
         self.__socket_read_task = None
         self.__disconnect_task_handle = None
         self.__message_dispatch_task = None
-        self.__outgoing_message_queue = []  # TODO replace with queue class
+        self.__outgoing_message_queue: Queue[Any] = Queue()
         self.__incoming_message_queue: Queue[Message] = Queue()
         self.__reconnect_event: Event = Event()
 
@@ -94,14 +94,13 @@ class Client:
         self.__disconnect_task_handle.cancel()
         self.__state = ClientState.OPEN
 
-        for message in self.__outgoing_message_queue:
-            await self.send(message)
-        self.__outgoing_message_queue.clear()
+        while self.__outgoing_message_queue:
+            await self.send(self.__outgoing_message_queue.pop())
         self.__reconnect_event.set()
 
     async def send(self, message: Any):
         if self.state == ClientState.RECONNECTING:
-            self.__outgoing_message_queue.append(message)
+            self.__outgoing_message_queue.push(message)
             return
         data = serialisation.dumps(message)
         header = struct.pack("!Id", len(data), datetime.now().timestamp())
@@ -109,7 +108,7 @@ class Client:
         self.__tcp_writer.write(data)
         await self.__tcp_writer.drain()
 
-    async def receive(self):
+    async def receive(self) -> Message:
         return await self.__incoming_message_queue.async_pop()
 
     def shutdown(self):

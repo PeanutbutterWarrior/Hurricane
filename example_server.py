@@ -5,24 +5,21 @@ from pprint import pprint
 
 server = server.Server(5)
 
-names = {}
-
 
 @server.on_new_connection
 async def new_client(client):
     print(f"New client connected with id {client.uuid}")
-    # await client.send(f"In a room with {', '.join(names.values())}")
 
 
 @server.on_receiving_message
 async def got_message(data: Message):
     print(f"Received {data.contents} from {data.author.uuid}")
-    if data.author not in names:
-        names[data.author] = data.contents
     await data.author.send(f"Received {data.contents} successfully")
 
     if data.contents == "clients":
         pprint(server._clients)
+    elif data.contents == "error":
+        _ = ([1, 2, 3])[3]
 
 
 @server.on_client_disconnect

@@ -79,10 +79,7 @@ class Client:
     ):
         while True:
             message = await self.__incoming_message_queue.async_pop()
-            try:
-                await callback(message)
-            except Exception as e:
-                print("error: ", e)  # TODO deal with
+            await callback(message)
 
     def start_receiving(self, callback: Callable[[Message], Coroutine]):
         if not self.__socket_read_task:

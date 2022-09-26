@@ -5,6 +5,8 @@ from typing import Awaitable, Callable, Coroutine
 import asyncio
 from asyncio import StreamReader, StreamWriter
 from uuid import UUID
+import sys
+import traceback
 
 from Hurricane.message import Message
 from Hurricane.client import Client, ClientBuilder
@@ -71,21 +73,36 @@ class Server:
     def on_new_connection(
         self, coro: Callable[[Client], Awaitable]
     ) -> Callable[[Client], Awaitable]:
-        self._new_connection_callback = coro
-        return coro
+        async def wrapper(client: Client):
+            try:
+                await coro(client)
+            except Exception as e:
+                traceback.print_exception(e, file=sys.stderr)
+
+        self._new_connection_callback = wrapper
+        return wrapper
 
     def on_receiving_message(
         self, coro: Callable[[Message], Awaitable]
     ) -> Callable[[Message], Awaitable]:
-        self._received_message_callback = coro
-        return coro
+        async def wrapper(message: Message):
+            try:
+                await coro(message)
+            except Exception as e:
+                traceback.print_exception(e, file=sys.stderr)
+
+        self._received_message_callback = wrapper
+        return wrapper
 
     def on_client_disconnect(
         self, coro: Callable[[Client], Awaitable]
     ) -> Callable[[Client], Awaitable]:
         async def wrapper(client: Client):
             del self._clients[client.uuid]
-            await coro(client)
+            try:
+                await coro(client)
+            except Exception as e:
+                traceback.print_exception(e, file=sys.stderr)
 
         self._client_disconnect_callback = wrapper
         return wrapper
@@ -93,8 +110,14 @@ class Server:
     def on_client_reconnect(
         self, coro: Callable[[Client], Awaitable]
     ) -> Callable[[Client], Awaitable]:
-        self._client_reconnect_callback = coro
-        return coro
+        async def wrapper(client: Client):
+            try:
+                await coro(client)
+            except Exception as e:
+                traceback.print_exception(e, file=sys.stderr)
+
+        self._client_reconnect_callback = wrapper
+        return wrapper
 
 
 class Group:

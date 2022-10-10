@@ -2,8 +2,9 @@ from Hurricane import server
 from Hurricane.message import Message
 
 from pprint import pprint
+import time
 
-server = server.Server(5)
+server = server.Server(timeout=5)
 
 
 @server.on_new_connection
@@ -14,12 +15,20 @@ async def new_client(client):
 @server.on_receiving_message
 async def got_message(data: Message):
     print(f"Received {data.contents} from {data.author.uuid}")
-    await data.author.send(f"Received {data.contents} successfully")
 
     if data.contents == "clients":
         pprint(server._clients)
     elif data.contents == "error":
         _ = ([1, 2, 3])[3]
+    elif data.contents == "sleep":
+        print("Sleeping")
+        time.sleep(5)
+        print("Awake")
+
+    await data.author.send(f"Got first part")
+
+    second = await data.author.receive()
+    await data.author.send(f"Concat: {data.contents + second.contents}")
 
 
 @server.on_client_disconnect

@@ -1,28 +1,64 @@
+from __future__ import annotations
+
 import socket
 import struct
 from datetime import datetime
-from typing import Any
+from typing import Any, TYPE_CHECKING
+import os
 
 from Hurricane.message import Message
 from Hurricane import serialisation
 
+from Crypto.PublicKey import RSA
+from Crypto.Cipher import AES, PKCS1_OAEP
 
-def send_message(contents: Any, connection: socket.socket):
+from Crypto.Hash import HMAC, SHA256
+from Crypto.Signature.pss import MGF1
+
+
+def send_message(
+    contents: Any, connection: socket.socket, aes_secret: bytes, nonce: bytes
+):
+    aes_key = AES.new(aes_secret, AES.MODE_CTR, nonce=nonce)
+
     data = serialisation.dumps(contents)
-    header = struct.pack("!Id", len(data), datetime.now().timestamp())
-    connection.send(header)
-    connection.send(data)
+    header = struct.pack("!d", datetime.now().timestamp())
+    plaintext = header + data
+    ciphertext = aes_key.encrypt(plaintext)
+
+    connection.send(len(ciphertext).to_bytes(2, "big", signed=False))
+    connection.send(ciphertext)
 
 
-def receive_message(connection: socket.socket) -> (Any, datetime, datetime):
-    header = connection.recv(Message.HEADER_SIZE)
-    message_size, time_sent = struct.unpack("!Id", header)
+def receive_message(
+    connection: socket.socket, aes_secret: bytes, nonce: bytes
+) -> (Any, datetime, datetime):
+    message_size = connection.recv(2)
+    message_size = int.from_bytes(message_size, "big", signed=False)
 
-    recieved_data = connection.recv(message_size)
+    aes_key = AES.new(aes_secret, AES.MODE_CTR, nonce=nonce)
 
-    time_received = datetime.now()
-    time_sent = datetime.fromtimestamp(time_sent)
+    data = connection.recv(message_size)
+    received_at = datetime.now()
+    data = aes_key.decrypt(data)
+    sent_at, contents = data[:8], data[8:]
+    sent_at = datetime.fromtimestamp(struct.unpack("!d", sent_at)[0])
+    contents = serialisation.loads(contents)
 
-    contents = serialisation.loads(recieved_data)
+    return contents, sent_at, received_at
 
-    return contents, time_sent, time_received
+
+def handshake(connection: socket.socket) -> bytes:
+    n = connection.recv(256)
+    n = int.from_bytes(n, "big", signed=False)
+    e = connection.recv(256)
+    e = int.from_bytes(e, "big", signed=False)
+    rsa_key = RSA.construct((n, e))
+    rsa_cipher = PKCS1_OAEP.new(rsa_key)
+
+    aes_secret = os.urandom(32)
+
+    sending = rsa_cipher.encrypt(aes_secret)
+    connection.sendall(sending)
+
+    return aes_secret

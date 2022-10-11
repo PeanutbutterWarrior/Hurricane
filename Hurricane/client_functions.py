@@ -3,62 +3,101 @@ from __future__ import annotations
 import socket
 import struct
 from datetime import datetime
-from typing import Any, TYPE_CHECKING
+from typing import Any
 import os
+from uuid import uuid4
+from itertools import count
 
-from Hurricane.message import Message
 from Hurricane import serialisation
 
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import AES, PKCS1_OAEP
 
-from Crypto.Hash import HMAC, SHA256
-from Crypto.Signature.pss import MGF1
 
+class ServerConnection:
+    def __init__(
+        self,
+        address,
+        port,
+        family=socket.AF_INET,
+        type=socket.SOCK_STREAM,  # Shadows builtin 'type()', kept to match socket.socket()
+        proto=0,
+        fileno=None,
+    ):
+        self._socket = socket.socket(
+            family=family, type=type, proto=proto, fileno=fileno
+        )
+        self._socket.connect((address, port))
+        self._prepare_encryption()
+        self._prepare_uuid()
 
-def send_message(
-    contents: Any, connection: socket.socket, aes_secret: bytes, nonce: bytes
-):
-    aes_key = AES.new(aes_secret, AES.MODE_CTR, nonce=nonce)
+    def __enter__(self):
+        return self
 
-    data = serialisation.dumps(contents)
-    header = struct.pack("!d", datetime.now().timestamp())
-    plaintext = header + data
-    ciphertext = aes_key.encrypt(plaintext)
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._socket.shutdown(0)
+        self._socket.close()
 
-    connection.send(len(ciphertext).to_bytes(2, "big", signed=False))
-    connection.send(ciphertext)
+    def _prepare_encryption(self):
+        n = int.from_bytes(self._socket.recv(256), "big", signed=False)
+        e = int.from_bytes(self._socket.recv(256), "big", signed=False)
+        rsa_key = RSA.construct((n, e))
+        rsa_cipher = PKCS1_OAEP.new(rsa_key)
+        aes_secret = os.urandom(32)
+        aes_secret_encrypted = rsa_cipher.encrypt(aes_secret)
+        self._socket.sendall(aes_secret_encrypted)
 
+        self._aes_secret = aes_secret
+        self._aes_counter = count()
 
-def receive_message(
-    connection: socket.socket, aes_secret: bytes, nonce: bytes
-) -> (Any, datetime, datetime):
-    message_size = connection.recv(2)
-    message_size = int.from_bytes(message_size, "big", signed=False)
+    def _prepare_uuid(self):
+        self._uuid = uuid4()
+        encrypted_uuid = self._encrypt(
+            self._uuid.bytes, nonce=(2**64 - 1).to_bytes(8, "big", signed=False)
+        )
+        self._socket.sendall(encrypted_uuid)
 
-    aes_key = AES.new(aes_secret, AES.MODE_CTR, nonce=nonce)
+    def _get_nonce(self) -> bytes:
+        return next(self._aes_counter).to_bytes(8, "big", signed=False)
 
-    data = connection.recv(message_size)
-    received_at = datetime.now()
-    data = aes_key.decrypt(data)
-    sent_at, contents = data[:8], data[8:]
-    sent_at = datetime.fromtimestamp(struct.unpack("!d", sent_at)[0])
-    contents = serialisation.loads(contents)
+    def _encrypt(self, data: bytes, nonce: bytes = None) -> bytes:
+        if nonce is None:
+            nonce = self._get_nonce()
+        aes_key = AES.new(self._aes_secret, AES.MODE_CTR, nonce=nonce)
+        return aes_key.encrypt(data)
 
-    return contents, sent_at, received_at
+    @staticmethod
+    def from_socket(sock: socket.socket):
+        obj = ServerConnection.__new__(ServerConnection)
+        obj._socket = sock
+        obj._prepare_encryption()
+        obj._prepare_uuid()
+        return obj
 
+    @property
+    def socket(self):
+        return self._socket
 
-def handshake(connection: socket.socket) -> bytes:
-    n = connection.recv(256)
-    n = int.from_bytes(n, "big", signed=False)
-    e = connection.recv(256)
-    e = int.from_bytes(e, "big", signed=False)
-    rsa_key = RSA.construct((n, e))
-    rsa_cipher = PKCS1_OAEP.new(rsa_key)
+    def send(self, message: Any):
+        data = serialisation.dumps(message)
+        header = struct.pack("!d", datetime.now().timestamp())
+        plaintext = header + data
+        ciphertext = self._encrypt(plaintext)
 
-    aes_secret = os.urandom(32)
+        self._socket.sendall(len(ciphertext).to_bytes(2, "big", signed=False))
+        self._socket.sendall(ciphertext)
 
-    sending = rsa_cipher.encrypt(aes_secret)
-    connection.sendall(sending)
+    def recv(self) -> (Any, datetime, datetime):
+        message_size = self._socket.recv(2)
+        message_size = int.from_bytes(message_size, "big", signed=False)
 
-    return aes_secret
+        aes_key = AES.new(self._aes_secret, AES.MODE_CTR, nonce=self._get_nonce())
+
+        data = self._socket.recv(message_size)
+        received_at = datetime.now()
+        data = aes_key.decrypt(data)
+        sent_at, contents = data[:8], data[8:]
+        sent_at = datetime.fromtimestamp(struct.unpack("!d", sent_at)[0])
+        contents = serialisation.loads(contents)
+
+        return contents, sent_at, received_at

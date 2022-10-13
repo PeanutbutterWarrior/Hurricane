@@ -62,11 +62,9 @@ class Server:
     ):
         tcp_writer.write(self._rsa_key.n.to_bytes(256, "big", signed=False))
         tcp_writer.write(self._rsa_key.e.to_bytes(256, "big", signed=False))
-
         aes_secret_encrypted = await tcp_reader.readexactly(256)
         aes_secret = self._rsa_cipher.decrypt(aes_secret_encrypted)
         client_builder.aes_secret = aes_secret
-
         uuid_encrypted = await tcp_reader.readexactly(16)
         aes_key = AES.new(
             aes_secret,
@@ -92,8 +90,9 @@ class Server:
         client = client_builder.construct()
         self._clients[client.uuid] = client
 
-        await self._new_connection_callback(client)
         client.start_receiving(self._received_message_callback)
+
+        await self._new_connection_callback(client)
 
     def start(self, host, port):
         async def runner():

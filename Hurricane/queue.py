@@ -1,6 +1,6 @@
 from collections import deque
 from typing import TypeVar, Generic
-from asyncio.locks import Event
+from asyncio.locks import Lock
 
 T = TypeVar("T")
 
@@ -8,7 +8,8 @@ T = TypeVar("T")
 class Queue(Generic[T]):
     def __init__(self):
         self._q: deque[T] = deque()
-        self._has_item: Event = Event()
+        self._has_item: Lock = Lock()
+        self._has_item._locked = True
 
     def __len__(self):
         return len(self._q)
@@ -18,17 +19,19 @@ class Queue(Generic[T]):
 
     def push(self, value: T):
         self._q.append(value)
-        self._has_item.set()
+        if self._has_item.locked():
+            self._has_item.release()
 
     def pop(self) -> T:
         if len(self) == 0:
             raise IndexError("pop from an empty Queue")
-        self._has_item.clear()
-        return self._q.popleft()
+        item = self._q.popleft()
+        self._has_item._locked = True
+        return item
 
     async def async_pop(self) -> T:
         if len(self) > 0:
             return self.pop()
 
-        await self._has_item.wait()
+        await self._has_item.acquire()
         return self.pop()

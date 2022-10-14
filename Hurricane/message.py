@@ -9,8 +9,12 @@ if TYPE_CHECKING:
 
 
 @dataclass
-class Message:
+class AnonymousMessage:
     contents: Any
-    author: client.Client
     sent_at: datetime
     received_at: datetime
+
+
+@dataclass
+class Message(AnonymousMessage):
+    author: client.Client

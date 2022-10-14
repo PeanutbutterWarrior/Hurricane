@@ -9,6 +9,7 @@ from uuid import uuid4
 from itertools import count
 
 from Hurricane import serialisation
+from Hurricane.message import AnonymousMessage
 
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import AES, PKCS1_OAEP
@@ -87,7 +88,7 @@ class ServerConnection:
         self._socket.sendall(len(ciphertext).to_bytes(2, "big", signed=False))
         self._socket.sendall(ciphertext)
 
-    def recv(self) -> (Any, datetime, datetime):
+    def recv(self) -> AnonymousMessage:
         message_size = self._socket.recv(2)
         message_size = int.from_bytes(message_size, "big", signed=False)
 
@@ -100,4 +101,4 @@ class ServerConnection:
         sent_at = datetime.fromtimestamp(struct.unpack("!d", sent_at)[0])
         contents = serialisation.loads(contents)
 
-        return contents, sent_at, received_at
+        return AnonymousMessage(contents, sent_at, received_at)

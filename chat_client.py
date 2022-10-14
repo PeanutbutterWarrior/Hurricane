@@ -12,9 +12,8 @@ def send_message():
 def receive_message():
     while True:
         message = server.recv()
-        print(f"got message {message[0]}")
         text_box['state'] = 'normal'
-        text_box.insert('end', '\n' + message[0])
+        text_box.insert('end', '\n' + message.contents)
         text_box['state'] = 'disabled'
 
 

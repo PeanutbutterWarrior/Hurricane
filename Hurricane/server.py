@@ -148,7 +148,3 @@ class Server:
 
         self._client_reconnect_callback = wrapper
         return wrapper
-
-
-class Group:
-    ...

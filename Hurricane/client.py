@@ -81,14 +81,14 @@ class Client:
                 )
                 data = aes_key.decrypt(data)
                 received_at = datetime.now()
-                sent_at, contents = data[:8], data[8:]
+                sent_at, contents = data[:8], data[8:]  # Double is 8 bytes long
                 sent_at = datetime.fromtimestamp(struct.unpack("!d", sent_at)[0])
                 contents = serialisation.loads(contents)
 
                 message = Message(contents, sent_at, received_at, self)
 
                 self.__incoming_message_queue.push(message)
-            except asyncio.IncompleteReadError:  # TODO do not drop exception and use partial read when reconnected
+            except asyncio.IncompleteReadError:
                 # EOF was received, nothing more can be read
                 # Assume that the client has stopped listening
                 self.__reconnect_event.clear()
@@ -109,7 +109,7 @@ class Client:
         return next(self.__aes_counter).to_bytes(8, "big", signed=False)
 
     def start_receiving(self, callback: Callable[[Message], Coroutine]):
-        if not self.__socket_read_task:
+        if not self.__socket_read_task:  # Make sure this is idempotent
             self.__socket_read_task = asyncio.create_task(self._read_from_socket())
             self.__message_dispatch_task = asyncio.create_task(
                 self._dispatch_messages_to_callback(callback)

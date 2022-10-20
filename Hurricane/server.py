@@ -78,7 +78,7 @@ class Server:
             try:
                 await client.reconnect(client_builder)
             except ConnectionError:
-                pass
+                pass  # Return to new client logic
             else:
                 if self._client_reconnect_callback:
                     await self._client_reconnect_callback(client)

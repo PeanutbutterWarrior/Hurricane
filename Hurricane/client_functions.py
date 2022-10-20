@@ -1,18 +1,18 @@
 from __future__ import annotations
 
+from Crypto.Cipher import AES, PKCS1_OAEP
+from Crypto.PublicKey import RSA
+from datetime import datetime
+from itertools import count
+import os
 import socket
 import struct
-from datetime import datetime
 from typing import Any
-import os
 from uuid import uuid4
-from itertools import count
+
 
 from Hurricane import serialisation
 from Hurricane.message import AnonymousMessage
-
-from Crypto.PublicKey import RSA
-from Crypto.Cipher import AES, PKCS1_OAEP
 
 
 class ServerConnection:

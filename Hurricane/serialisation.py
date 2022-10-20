@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Callable
 import importlib
 from io import BytesIO
 import struct
+from types import NoneType
+from typing import Any, Dict, Callable
 
 
 class ObjectTooLargeException(Exception):
@@ -380,7 +381,7 @@ _discriminant_to_type = {
     10: bytes,
     11: bytearray,
     12: frozenset,
-    13: type(None),  # The NoneType is not accessible otherwise in 3.8
+    13: NoneType,
     254: ...,  # Reserved for use internally
     255: ...,  # Reserved for use internally
 }

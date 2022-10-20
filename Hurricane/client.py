@@ -3,18 +3,18 @@ from __future__ import annotations
 import asyncio
 from asyncio import StreamReader, StreamWriter
 from asyncio.locks import Event
-from enum import Enum
-import struct
-from typing import Any, Callable, Coroutine, TYPE_CHECKING, Iterator
+from Crypto.Cipher import AES
 from datetime import datetime
-from uuid import UUID
+from enum import Enum
 import itertools
+import struct
+from typing import Any, Callable, Coroutine, Iterator
+from uuid import UUID
+
 
 from Hurricane.message import Message
 from Hurricane import serialisation
 from Hurricane.queue import Queue
-
-from Crypto.Cipher import AES
 
 
 class ClientState(Enum):
@@ -85,7 +85,7 @@ class Client:
                 sent_at = datetime.fromtimestamp(struct.unpack("!d", sent_at)[0])
                 contents = serialisation.loads(contents)
 
-                message = Message(contents, self, sent_at, received_at)
+                message = Message(contents, sent_at, received_at, self)
 
                 self.__incoming_message_queue.push(message)
             except asyncio.IncompleteReadError:  # TODO do not drop exception and use partial read when reconnected

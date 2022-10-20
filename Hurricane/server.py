@@ -1,18 +1,16 @@
 from __future__ import annotations
 
-from typing import Awaitable, Callable, Coroutine
-
 import asyncio
 from asyncio import StreamReader, StreamWriter
-from uuid import UUID
+from Crypto.Cipher import PKCS1_OAEP, AES
+from Crypto.PublicKey import RSA
 import sys
 import traceback
-from Crypto.PublicKey import RSA
-from Crypto.Cipher import PKCS1_OAEP, AES
+from typing import Awaitable, Callable, Coroutine
+from uuid import UUID
 
 from Hurricane.message import Message
 from Hurricane.client import Client, ClientBuilder
-from Hurricane.serialisation import dumps, loads
 
 # Used to keep a reference to any tasks
 # asyncio.create_task only creates a weak reference to the task

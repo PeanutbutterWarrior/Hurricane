@@ -1,6 +1,6 @@
+from asyncio.locks import Lock
 from collections import deque
 from typing import TypeVar, Generic
-from asyncio.locks import Lock
 
 T = TypeVar("T")
 

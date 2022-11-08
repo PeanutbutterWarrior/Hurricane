@@ -17,8 +17,14 @@ class Group:
     def __iter__(self):
         return iter(self._members)
 
+    def __contains__(self, item):
+        return item in self._members
+
     async def send(self, message: Any):
         await asyncio.gather(member.send(message) for member in self._members)
 
     def add(self, new_member: Group | Client):
         self._members.add(new_member)
+
+    def remove(self, member: Group | Client):
+        self._members.remove(member)

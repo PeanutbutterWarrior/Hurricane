@@ -20,13 +20,12 @@ task_references = set()
 
 
 class Server:
-    def __init__(self, *, timeout=30, encryption=True, rsa_key_path=None):
+    def __init__(self, *, timeout=30, rsa_key_path=None):
         self._clients: dict[UUID, Client] = {}
         self._new_connection_callback: Callable[[Client], Coroutine] | None = None
         self._received_message_callback: Callable[[Message], Coroutine] | None = None
         self._client_disconnect_callback: Callable[[Client], Coroutine] | None = None
         self.reconnect_timeout: int = timeout
-        self.encryption: bool = encryption
 
         # Most decisions informed by
         # https://www.daemonology.net/blog/2009-06-11-cryptographic-right-answers.html

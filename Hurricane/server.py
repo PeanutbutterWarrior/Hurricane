@@ -25,7 +25,6 @@ class Server:
         self._new_connection_callback: Callable[[Client], Coroutine] | None = None
         self._received_message_callback: Callable[[Message], Coroutine] | None = None
         self._client_disconnect_callback: Callable[[Client], Coroutine] | None = None
-        self._client_reconnect_callback: Callable[[Client], Coroutine] | None = None
         self.reconnect_timeout: int = timeout
         self.encryption: bool = encryption
 
@@ -80,8 +79,6 @@ class Server:
             except ConnectionError:
                 pass  # Return to new client logic
             else:
-                if self._client_reconnect_callback:
-                    await self._client_reconnect_callback(client)
                 return
 
         # Client is new or reconnection failed
@@ -137,14 +134,3 @@ class Server:
         self._client_disconnect_callback = wrapper
         return wrapper
 
-    def on_client_reconnect(
-        self, coro: Callable[[Client], Awaitable]
-    ) -> Callable[[Client], Awaitable]:
-        async def wrapper(client: Client):
-            try:
-                await coro(client)
-            except Exception as e:
-                traceback.print_exception(e, file=sys.stderr)
-
-        self._client_reconnect_callback = wrapper
-        return wrapper

@@ -9,6 +9,11 @@ class Queue(Generic[T]):
     def __init__(self):
         self._q: deque[T] = deque()
         self._has_item: Lock = Lock()
+        # There is no way to synchronously acquire a lock
+        # There is no alternative primitive that can perform this synchronously
+        # The __init__ method cannot be made asynchronous
+        # The push() method is much more useful synchronous
+        #
         self._has_item._locked = True
 
     def __len__(self):
@@ -26,6 +31,7 @@ class Queue(Generic[T]):
         if len(self) == 0:
             raise IndexError("pop from an empty Queue")
         item = self._q.popleft()
+        # See comment in __init__()
         self._has_item._locked = True
         return item
 

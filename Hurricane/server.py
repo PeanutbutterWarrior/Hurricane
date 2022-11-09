@@ -88,7 +88,7 @@ class Server:
 
         await self._new_connection_callback(client)
 
-    def start(self, host, port):
+    def start(self, host: str, port: int):
         async def runner():
             server = await asyncio.start_server(self.__new_client, host=host, port=port)
             async with server:

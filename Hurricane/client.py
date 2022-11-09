@@ -116,6 +116,9 @@ class Client:
             )
 
     async def reconnect(self, proto: ClientBuilder):
+        if self.__state != ClientState.RECONNECTING:
+            raise RuntimeError("Client does not need to reconnect")
+
         self.__tcp_reader = proto.reader
         self.__tcp_writer = proto.writer
         self.__aes_secret = proto.aes_secret

@@ -40,18 +40,18 @@ class Server:
             self._rsa_key = RSA.generate(bits=2048, e=65537)
         self._rsa_cipher: PKCS1_OAEP.PKCS1OAEP_Cipher = PKCS1_OAEP.new(self._rsa_key)
 
-    def __new_client(self, reader: StreamReader, writer: StreamWriter):
+    def _new_client(self, reader: StreamReader, writer: StreamWriter):
         new_client = ClientBuilder()
         new_client.reader = reader
         new_client.writer = writer
         new_client.disconnect_callback = self._client_disconnect_callback
         new_client.reconnect_timeout = self.reconnect_timeout
 
-        new_task = asyncio.create_task(self.__client_setup(reader, writer, new_client))
+        new_task = asyncio.create_task(self._client_setup(reader, writer, new_client))
         task_references.add(new_task)
         new_task.add_done_callback(task_references.remove)
 
-    async def __client_setup(
+    async def _client_setup(
         self,
         tcp_reader: StreamReader,
         tcp_writer: StreamWriter,
@@ -89,7 +89,7 @@ class Server:
 
     def start(self, host: str, port: int):
         async def runner():
-            server = await asyncio.start_server(self.__new_client, host=host, port=port)
+            server = await asyncio.start_server(self._new_client, host=host, port=port)
             async with server:
                 await server.serve_forever()
 

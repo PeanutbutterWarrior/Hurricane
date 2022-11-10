@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 from asyncio import StreamReader, StreamWriter
 from asyncio.locks import Event
-from Crypto.Cipher import AES
 from datetime import datetime
 from enum import Enum
 import itertools
@@ -15,6 +14,7 @@ from uuid import UUID
 from Hurricane.message import Message
 from Hurricane import serialisation
 from Hurricane.queue import Queue
+from Hurricane.encryption import ServerEncryption
 
 
 class ClientState(Enum):
@@ -31,23 +31,23 @@ class Client:
         uuid: UUID,
         client_disconnect_callback,
         reconnect_timeout: int,
-        encryption: bool,
-        aes_secret: bytes,
+        encrypter: ServerEncryption,
     ):
 
         self.__tcp_reader: StreamReader = tcp_reader
         self.__tcp_writer: StreamWriter = tcp_writer
         self.__state: ClientState = ClientState.OPEN
         self.__uuid: UUID = uuid
-        self.__encryption = encryption
         self.__socket_read_task = None
         self.__disconnect_task_handle = None
         self.__message_dispatch_task = None
         self.__outgoing_message_queue: Queue[Any] = Queue()
         self.__incoming_message_queue: Queue[Message] = Queue()
         self.__reconnect_event: Event = Event()
-        self.__aes_secret: bytes = aes_secret
-        self.__aes_counter: Iterator[int] = itertools.count()
+        self.__encrypter: ServerEncryption = encrypter
+
+        self.__aes_server_counter: Iterator[int] = itertools.count()
+        self.__aes_client_counter: Iterator[int] = itertools.count(start=2 ** 63)
 
         self._client_disconnect_callback: Callable[
             [Client], Coroutine
@@ -75,15 +75,14 @@ class Client:
                 message_size = await self.__tcp_reader.readexactly(2)
                 message_size = int.from_bytes(message_size, "big", signed=False)
 
-                data = await self.__tcp_reader.readexactly(message_size)
-                aes_key = AES.new(
-                    self.__aes_secret, AES.MODE_CTR, nonce=self._aes_nonce()
-                )
-                data = aes_key.decrypt(data)
+                encrypted_data = await self.__tcp_reader.readexactly(message_size)
                 received_at = datetime.now()
-                sent_at, contents = data[:8], data[8:]  # Double is 8 bytes long
+
+                raw_data = self.__encrypter.decrypt(encrypted_data)
+                sent_at, data = raw_data[:8], raw_data[8:]  # Double is 8 bytes long
+
                 sent_at = datetime.fromtimestamp(struct.unpack("!d", sent_at)[0])
-                contents = serialisation.loads(contents)
+                contents = serialisation.loads(data)
 
                 message = Message(contents, sent_at, received_at, self)
 
@@ -105,8 +104,11 @@ class Client:
             message = await self.__incoming_message_queue.async_pop()
             await callback(message)
 
-    def _aes_nonce(self):
-        return next(self.__aes_counter).to_bytes(8, "big", signed=False)
+    def _get_server_nonce(self):
+        return next(self.__aes_server_counter).to_bytes(8, "big", signed=False)
+
+    def _get_client_nonce(self):
+        return next(self.__aes_client_counter).to_bytes(8, "big", signed=False)
 
     def start_receiving(self, callback: Callable[[Message], Coroutine]):
         if not self.__socket_read_task:  # Make sure this is idempotent
@@ -121,7 +123,7 @@ class Client:
 
         self.__tcp_reader = proto.reader
         self.__tcp_writer = proto.writer
-        self.__aes_secret = proto.aes_secret
+        self.__encrypter = proto.encrypter
         self.__disconnect_task_handle.cancel()
         self.__state = ClientState.OPEN
 
@@ -138,10 +140,10 @@ class Client:
         header = struct.pack("!d", datetime.now().timestamp())
         plaintext = header + data
 
-        aes_key = AES.new(self.__aes_secret, AES.MODE_CTR, nonce=self._aes_nonce())
-        ciphertext = aes_key.encrypt(plaintext)
-        self.__tcp_writer.write(len(ciphertext).to_bytes(2, "big", signed=False))
-        self.__tcp_writer.write(ciphertext)
+        data = self.__encrypter.encrypt(plaintext)
+
+        self.__tcp_writer.write(len(data).to_bytes(2, "big", signed=False))
+        self.__tcp_writer.write(data)
         await self.__tcp_writer.drain()
 
     async def receive(self) -> Message:
@@ -167,8 +169,7 @@ class ClientBuilder:
         self.disconnect_callback: Callable[[Client], Coroutine] | None = None
         self.uuid: UUID | None = None
         self.reconnect_timeout: int | None = None
-        self.encryption: bool | None = None
-        self.aes_secret: bytes | None = None
+        self.encrypter: ServerEncryption | None = None
 
     def construct(self) -> Client:
         return Client(
@@ -177,6 +178,5 @@ class ClientBuilder:
             self.uuid,
             self.disconnect_callback,
             self.reconnect_timeout,
-            self.encryption,
-            self.aes_secret,
+            self.encrypter,
         )

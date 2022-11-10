@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from asyncio import StreamReader, StreamWriter
-from Crypto.Cipher import PKCS1_OAEP, AES
+from Crypto.Cipher import PKCS1_OAEP
 from Crypto.PublicKey import RSA
 import sys
 import traceback
@@ -11,6 +11,7 @@ from uuid import UUID
 
 from Hurricane.message import Message
 from Hurricane.client import Client, ClientBuilder
+from Hurricane.encryption import ServerEncryption
 
 # Used to keep a reference to any tasks
 # asyncio.create_task only creates a weak reference to the task
@@ -58,16 +59,14 @@ class Server:
     ):
         tcp_writer.write(self._rsa_key.n.to_bytes(256, "big", signed=False))
         tcp_writer.write(self._rsa_key.e.to_bytes(256, "big", signed=False))
+
         aes_secret_encrypted = await tcp_reader.readexactly(256)
         aes_secret = self._rsa_cipher.decrypt(aes_secret_encrypted)
-        client_builder.aes_secret = aes_secret
-        uuid_encrypted = await tcp_reader.readexactly(16)
-        aes_key = AES.new(
-            aes_secret,
-            AES.MODE_CTR,
-            nonce=(2**64 - 1).to_bytes(8, "big", signed=False),
-        )
-        uuid = aes_key.decrypt(uuid_encrypted)
+        client_builder.encrypter = ServerEncryption(secret=aes_secret)
+
+        uuid_data = await tcp_reader.readexactly(32 + 16)
+
+        uuid = client_builder.encrypter.decrypt(uuid_data)
         client_builder.uuid = UUID(bytes=uuid)
 
         if client_builder.uuid in self._clients:
@@ -132,4 +131,3 @@ class Server:
 
         self._client_disconnect_callback = wrapper
         return wrapper
-

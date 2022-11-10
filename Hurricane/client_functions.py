@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-from Crypto.Cipher import AES, PKCS1_OAEP
+from Crypto.Cipher import PKCS1_OAEP
 from Crypto.PublicKey import RSA
 from datetime import datetime
-from itertools import count
-import os
 import socket
 import struct
 from typing import Any
@@ -13,6 +11,7 @@ from uuid import uuid4
 
 from Hurricane import serialisation
 from Hurricane.message import AnonymousMessage
+from Hurricane.encryption import ClientEncryption
 
 
 class ServerConnection:
@@ -44,28 +43,16 @@ class ServerConnection:
         e = int.from_bytes(self._socket.recv(256), "big", signed=False)
         rsa_key = RSA.construct((n, e))
         rsa_cipher = PKCS1_OAEP.new(rsa_key)
-        aes_secret = os.urandom(32)
-        aes_secret_encrypted = rsa_cipher.encrypt(aes_secret)
-        self._socket.sendall(aes_secret_encrypted)
 
-        self._aes_secret = aes_secret
-        self._aes_counter = count()
+        self._encrypter: ClientEncryption = ClientEncryption()
+
+        aes_secret_encrypted = rsa_cipher.encrypt(self._encrypter.aes_secret)
+        self._socket.sendall(aes_secret_encrypted)
 
     def _prepare_uuid(self):
         self._uuid = uuid4()
-        encrypted_uuid = self._encrypt(
-            self._uuid.bytes, nonce=(2**64 - 1).to_bytes(8, "big", signed=False)
-        )
+        encrypted_uuid = self._encrypter.encrypt(self._uuid.bytes)
         self._socket.sendall(encrypted_uuid)
-
-    def _get_nonce(self) -> bytes:
-        return next(self._aes_counter).to_bytes(8, "big", signed=False)
-
-    def _encrypt(self, data: bytes, nonce: bytes = None) -> bytes:
-        if nonce is None:
-            nonce = self._get_nonce()
-        aes_key = AES.new(self._aes_secret, AES.MODE_CTR, nonce=nonce)
-        return aes_key.encrypt(data)
 
     @staticmethod
     def from_socket(sock: socket.socket):
@@ -83,7 +70,7 @@ class ServerConnection:
         data = serialisation.dumps(message)
         header = struct.pack("!d", datetime.now().timestamp())
         plaintext = header + data
-        ciphertext = self._encrypt(plaintext)
+        ciphertext = self._encrypter.encrypt(plaintext)
 
         self._socket.sendall(len(ciphertext).to_bytes(2, "big", signed=False))
         self._socket.sendall(ciphertext)
@@ -92,13 +79,13 @@ class ServerConnection:
         message_size = self._socket.recv(2)
         message_size = int.from_bytes(message_size, "big", signed=False)
 
-        aes_key = AES.new(self._aes_secret, AES.MODE_CTR, nonce=self._get_nonce())
-
-        data = self._socket.recv(message_size)
+        encrypted_data = self._socket.recv(message_size)
         received_at = datetime.now()
-        data = aes_key.decrypt(data)
-        sent_at, contents = data[:8], data[8:]
+
+        raw_data = self._encrypter.decrypt(encrypted_data)
+        sent_at, data = raw_data[:8], raw_data[8:]
+
         sent_at = datetime.fromtimestamp(struct.unpack("!d", sent_at)[0])
-        contents = serialisation.loads(contents)
+        contents = serialisation.loads(data)
 
         return AnonymousMessage(contents, sent_at, received_at)

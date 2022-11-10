@@ -47,7 +47,7 @@ class Client:
         self.__encrypter: ServerEncryption = encrypter
 
         self.__aes_server_counter: Iterator[int] = itertools.count()
-        self.__aes_client_counter: Iterator[int] = itertools.count(start=2 ** 63)
+        self.__aes_client_counter: Iterator[int] = itertools.count(start=2**63)
 
         self._client_disconnect_callback: Callable[
             [Client], Coroutine

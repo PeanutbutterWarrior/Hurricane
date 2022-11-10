@@ -32,10 +32,12 @@ class BaseEncryption(abc.ABC):
         return AES.new(self._secret, AES.MODE_CTR, nonce=nonce)
 
     def get_hmac(self, data: bytes) -> bytes:
-        return hmac.digest(self._secret, data, 'sha256')
+        return hmac.digest(self._secret, data, "sha256")
 
     def encrypt(self, data: bytes):
-        aes_key = self.get_aes_key(self.get_encryption_nonce().to_bytes(8, 'big', signed=False))
+        aes_key = self.get_aes_key(
+            self.get_encryption_nonce().to_bytes(8, "big", signed=False)
+        )
         encrypted_data = aes_key.encrypt(data)
         hmac_digest = self.get_hmac(encrypted_data)
         return hmac_digest + encrypted_data
@@ -46,7 +48,9 @@ class BaseEncryption(abc.ABC):
         if not hmac.compare_digest(hmac_digest_received, hmac_digest_computed):
             raise ValueError("HMAC is incorrect")
 
-        aes_key = self.get_aes_key(self.get_decryption_nonce().to_bytes(8, 'big', signed=False))
+        aes_key = self.get_aes_key(
+            self.get_decryption_nonce().to_bytes(8, "big", signed=False)
+        )
         return aes_key.decrypt(encrypted_data)
 
 

@@ -5,9 +5,8 @@ from asyncio import StreamReader, StreamWriter
 from asyncio.locks import Event
 from datetime import datetime
 from enum import Enum
-import itertools
 import struct
-from typing import Any, Callable, Coroutine, Iterator
+from typing import Any, Callable, Coroutine
 from uuid import UUID
 
 
@@ -45,9 +44,6 @@ class Client:
         self.__incoming_message_queue: Queue[Message] = Queue()
         self.__reconnect_event: Event = Event()
         self.__encrypter: ServerEncryption = encrypter
-
-        self.__aes_server_counter: Iterator[int] = itertools.count()
-        self.__aes_client_counter: Iterator[int] = itertools.count(start=2**63)
 
         self._client_disconnect_callback: Callable[
             [Client], Coroutine
@@ -103,12 +99,6 @@ class Client:
         while True:
             message = await self.__incoming_message_queue.async_pop()
             await callback(message)
-
-    def _get_server_nonce(self):
-        return next(self.__aes_server_counter).to_bytes(8, "big", signed=False)
-
-    def _get_client_nonce(self):
-        return next(self.__aes_client_counter).to_bytes(8, "big", signed=False)
 
     def start_receiving(self, callback: Callable[[Message], Coroutine]):
         if not self.__socket_read_task:  # Make sure this is idempotent

@@ -85,7 +85,8 @@ class Server:
 
         client.start_receiving(self._received_message_callback)
 
-        await self._new_connection_callback(client)
+        if self._new_connection_callback:
+            await self._new_connection_callback(client)
 
     def start(self, host: str, port: int):
         async def runner():

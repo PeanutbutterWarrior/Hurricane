@@ -103,9 +103,10 @@ class Client:
     def start_receiving(self, callback: Callable[[Message], Coroutine]):
         if not self._socket_read_task:  # Make sure this is idempotent
             self._socket_read_task = asyncio.create_task(self._read_from_socket())
-            self._message_dispatch_task = asyncio.create_task(
-                self._dispatch_messages_to_callback(callback)
-            )
+            if callback:
+                self._message_dispatch_task = asyncio.create_task(
+                    self._dispatch_messages_to_callback(callback)
+                )
 
     async def reconnect(self, proto: ClientBuilder):
         if self._state != ClientState.RECONNECTING:
@@ -147,9 +148,10 @@ class Client:
         self._message_dispatch_task.cancel()
         self._message_dispatch_task = None
 
-        asyncio.create_task(
-            self._client_disconnect_callback(self)
-        )
+        if self._client_disconnect_callback:
+            asyncio.create_task(
+                self._client_disconnect_callback(self)
+            )
 
 
 class ClientBuilder:

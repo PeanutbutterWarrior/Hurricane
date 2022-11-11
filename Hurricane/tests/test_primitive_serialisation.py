@@ -82,7 +82,7 @@ class TestTuple:
         assert serialisation.loads(serialised) == tup
 
     def test_large(self):
-        tup = tuple(range(1, serialisation.MAXIMUM_SIZE))
+        tup = tuple(range(1, 10_000))
         serialised = serialisation.dumps(tup)
         assert serialisation.loads(serialised) == tup
 
@@ -111,7 +111,7 @@ class TestList:
         assert serialisation.loads(serialised) == li
 
     def test_large(self):
-        li = list(range(0, serialisation.MAXIMUM_SIZE))
+        li = list(range(0, 10_000))
         serialised = serialisation.dumps(li)
         assert serialisation.loads(serialised) == li
 
@@ -137,7 +137,7 @@ class TestDict:
         assert serialisation.loads(serialised) == di
 
     def test_large(self):
-        di = dict((i, i + 1) for i in range(serialisation.MAXIMUM_SIZE // 2))
+        di = dict((i, i + 1) for i in range(5_000))
         serialised = serialisation.dumps(di)
         assert serialisation.loads(serialised) == di
 
@@ -167,7 +167,7 @@ class TestSet:
         assert serialisation.loads(serialised) == se
 
     def test_large(self):
-        se = set(range(serialisation.MAXIMUM_SIZE))
+        se = set(range(10_000))
         serialised = serialisation.dumps(se)
         assert serialisation.loads(serialised) == se
 
@@ -289,7 +289,7 @@ class TestFrozenset:
         assert serialisation.loads(serialised) == se
 
     def test_large(self):
-        se = frozenset(range(serialisation.MAXIMUM_SIZE))
+        se = frozenset(range(10_000))
         serialised = serialisation.dumps(se)
         assert serialisation.loads(serialised) == se
 

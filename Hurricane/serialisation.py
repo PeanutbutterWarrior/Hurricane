@@ -38,6 +38,8 @@ class Serialiser:
                 f"{type(obj)} cannot be serialised. Add an @serialisation.make_serialisable "
                 f"decorator to the class definition"
             )
+        if len(self.stream.getvalue()) > MAXIMUM_SIZE:
+            raise ObjectTooLargeException("Maximum size reached")
 
     def get_data(self) -> bytes:
         return self.stream.getvalue()

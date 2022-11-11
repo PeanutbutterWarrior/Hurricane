@@ -28,11 +28,22 @@ class Group:
         for member in self._members:
             new_already_sent_to.add(member)
 
+        groups_to_send_to = []
+        clients_to_send_to = []
+        for member in self._members:
+            if member not in already_sent_to:
+                if type(member) == Group:
+                    groups_to_send_to.append(member)
+                else:
+                    clients_to_send_to.append(member)
+
         await asyncio.gather(
-            member.checked_send(message, new_already_sent_to)
-            for member in self._members
-            if member not in already_sent_to
+            *[
+                member.checked_send(message, new_already_sent_to)
+                for member in groups_to_send_to
+            ]
         )
+        await asyncio.gather(*[member.send(message) for member in clients_to_send_to])
 
     def add(self, new_member: Group | Client):
         self._members.add(new_member)

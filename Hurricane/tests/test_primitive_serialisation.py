@@ -12,13 +12,11 @@ class TestInt:
     def test_zero(self):
         zero = 0
         zero_serialised = serialisation.dumps(zero)
-        assert zero_serialised == b"\x01\x00\x01\x00"
         assert serialisation.loads(zero_serialised) == zero
 
     def test_negative(self):
         minus_three = -3
         minus_three_serialised = serialisation.dumps(minus_three)
-        assert minus_three_serialised == b"\x01\x00\x01\xFD"
         assert serialisation.loads(minus_three_serialised) == minus_three
 
     def test_large(self):
@@ -46,7 +44,6 @@ class TestStr:
     def test_empty(self):
         message = ""
         serialised = serialisation.dumps(message)
-        assert serialised == b"\x02\x00\x00"
         assert serialisation.loads(serialised) == message
 
     def test_utf8(self):
@@ -111,17 +108,11 @@ class TestList:
     def test_small_heterogenous(self):
         li = [1, "bagel", False]
         serialised = serialisation.dumps(li)
-        assert serialised == b"\x05\x00\x03" + b"".join(
-            serialisation.dumps(i) for i in li
-        )
         assert serialisation.loads(serialised) == li
 
     def test_large(self):
         li = list(range(0, serialisation.MAXIMUM_SIZE))
         serialised = serialisation.dumps(li)
-        assert serialised == b"\x05\xff\xff" + b"".join(
-            serialisation.dumps(i) for i in li
-        )
         assert serialisation.loads(serialised) == li
 
     def test_too_large(self):

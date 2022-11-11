@@ -47,7 +47,7 @@ class TestStr:
         assert serialisation.loads(serialised) == message
 
     def test_utf8(self):
-        message = "Њଛp!\x00▰👋"
+        message = ''.join(chr(i) for i in [1034, 2843, 112, 33, 0, 9648, 65533, 65533])
         serialised = serialisation.dumps(message)
         assert serialisation.loads(serialised) == message
 

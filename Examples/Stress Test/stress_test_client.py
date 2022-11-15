@@ -18,11 +18,25 @@ def send(server, output, num_messages, delay):
 
 
 def run_test(num_conns, num_messages, delay):
-    connections = [ServerConnection('87.75.16.230', 65432) for _ in range(num_conns)]
+    connections = [ServerConnection("87.75.16.230", 65432) for _ in range(num_conns)]
     send_outputs = [{} for _ in range(num_conns)]
     recv_outputs = [{} for _ in range(num_conns)]
-    receiving_threads = [threading.Thread(target=receive, daemon=True, args=(connections[i], recv_outputs[i], num_messages)) for i in range(num_conns)]
-    sending_threads = [threading.Thread(target=send, daemon=True, args=(connections[i], send_outputs[i], num_messages, delay)) for i in range(num_conns)]
+    receiving_threads = [
+        threading.Thread(
+            target=receive,
+            daemon=True,
+            args=(connections[i], recv_outputs[i], num_messages),
+        )
+        for i in range(num_conns)
+    ]
+    sending_threads = [
+        threading.Thread(
+            target=send,
+            daemon=True,
+            args=(connections[i], send_outputs[i], num_messages, delay),
+        )
+        for i in range(num_conns)
+    ]
 
     for thread in receiving_threads:
         thread.start()
@@ -49,7 +63,7 @@ def run_test(num_conns, num_messages, delay):
 delay = 0.1
 num_messages = 50
 
-master_conn = ServerConnection('87.75.16.230', 65432)
+master_conn = ServerConnection("87.75.16.230", 65432)
 
 outputs = []
 for i in range(1, 61):
@@ -58,9 +72,9 @@ for i in range(1, 61):
     outputs.append(total_time)
     message = master_conn.recv()
 
-with open("output.txt", 'w+') as file:
+with open("output.txt", "w+") as file:
     for ind, item in enumerate(outputs):
         file.write(str(ind))
-        file.write(' ')
+        file.write(" ")
         file.write(str(item))
         file.write("\n")

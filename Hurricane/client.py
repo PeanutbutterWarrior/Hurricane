@@ -155,9 +155,7 @@ class Client:
         self._message_dispatch_task = None
 
         if self._client_disconnect_callback:
-            asyncio.create_task(
-                self._client_disconnect_callback(self)
-            )
+            asyncio.create_task(self._client_disconnect_callback(self))
 
 
 class ClientBuilder:

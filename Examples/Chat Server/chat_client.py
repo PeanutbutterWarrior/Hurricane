@@ -6,19 +6,19 @@ import threading
 
 def send_message():
     server.send(entry_box.get())
-    entry_box.delete(0, 'end')
+    entry_box.delete(0, "end")
 
 
 def receive_message():
     while True:
         message = server.recv()
-        text_box['state'] = 'normal'
-        text_box.insert('end', '\n' + message.contents)
-        text_box['state'] = 'disabled'
+        text_box["state"] = "normal"
+        text_box.insert("end", "\n" + message.contents)
+        text_box["state"] = "disabled"
 
 
 window = tk.Tk()
-text_box = tk.Text(width=50, height=20, state='disabled')
+text_box = tk.Text(width=50, height=20, state="disabled")
 entry_box = tk.Entry(width=40)
 submit = tk.Button(text="Submit", width=10, command=send_message)
 
@@ -28,7 +28,7 @@ submit.pack()
 
 receiving_thread = threading.Thread(target=receive_message, daemon=True)
 
-with ServerConnection('localhost', 65432, socket.AF_INET, socket.SOCK_STREAM) as server:
+with ServerConnection("localhost", 65432, socket.AF_INET, socket.SOCK_STREAM) as server:
     name = input("Name: ")
     server.send(name)
     receiving_thread.start()

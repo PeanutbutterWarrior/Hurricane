@@ -23,7 +23,7 @@ class MockSocket:
 
 
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-    s.connect(('localhost', 65432))
+    s.connect(("localhost", 65432))
     mock_socket = MockSocket(s)
     with ServerConnection.from_socket(mock_socket) as server:
         server.send("Hello")

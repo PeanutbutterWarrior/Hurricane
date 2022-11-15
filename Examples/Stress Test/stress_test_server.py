@@ -4,11 +4,13 @@ server = Hurricane.Server(timeout=1)
 
 master_conn: Hurricane.Client | None = None
 
+
 @server.on_new_connection
 async def new_conn(client):
     global master_conn
     if master_conn is None:
         master_conn = client
+
 
 @server.on_client_disconnect
 async def disconnect(client):
@@ -20,4 +22,5 @@ async def disconnect(client):
 async def got_mail(message: Hurricane.Message):
     await message.author.send(message.contents)
 
-server.start('0.0.0.0', 65432)
+
+server.start("0.0.0.0", 65432)

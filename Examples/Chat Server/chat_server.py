@@ -6,18 +6,18 @@ clients = []
 names = {}
 containing_groups = {}
 
-rooms = {'all': Hurricane.Group()}
+rooms = {"all": Hurricane.Group()}
 
 
 @server.on_new_connection
 async def on_new_client(new_client: Hurricane.Client):
     clients.append(new_client)
-    rooms['all'].add(new_client)
-    containing_groups[new_client] = 'all'
+    rooms["all"].add(new_client)
+    containing_groups[new_client] = "all"
     name = (await new_client.receive()).contents
     names[new_client] = name.title()
     print(f"{name} has joined the chat")
-    await rooms['all'].send(f"{name} has joined the chat")
+    await rooms["all"].send(f"{name} has joined the chat")
 
 
 @server.on_receiving_message
@@ -30,13 +30,19 @@ async def got_message(message: Hurricane.Message):
 
         rooms[old_group_name].remove(message.author)
 
-        await rooms[old_group_name].send(f"{names[message.author]} has changed to group {group_name}")
-        await rooms[group_name].send(f"{names[message.author]} has joined group {group_name}")
+        await rooms[old_group_name].send(
+            f"{names[message.author]} has changed to group {group_name}"
+        )
+        await rooms[group_name].send(
+            f"{names[message.author]} has joined group {group_name}"
+        )
         await message.author.send(f"You have changed to group {group_name}")
 
         rooms[group_name].add(message.author)
         containing_groups[message.author] = group_name
-        print(f"{names[message.author]} changed from group {old_group_name} to {group_name}")
+        print(
+            f"{names[message.author]} changed from group {old_group_name} to {group_name}"
+        )
     else:
         formatted_message = f"{names[message.author]}: {message.contents}"
         print(formatted_message)
@@ -52,4 +58,5 @@ async def client_left(leaving_client: Hurricane.Client):
     for client in clients:
         await client.send(f"{name} has left the chat")
 
-server.start('0.0.0.0', 65432)
+
+server.start("0.0.0.0", 65432)

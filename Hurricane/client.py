@@ -86,12 +86,7 @@ class Client:
             except asyncio.IncompleteReadError:
                 # EOF was received, nothing more can be read
                 # Assume that the client has stopped listening
-                self._reconnect_event.clear()
-                self._state = ClientState.RECONNECTING
-                self._disconnect_task_handle = asyncio.get_running_loop().call_later(
-                    self.reconnect_timeout, self.shutdown
-                )
-                await self._reconnect_event.wait()
+                await self._handle_disconnection()
 
     async def _dispatch_messages_to_callback(
         self, callback: Callable[[Message], Coroutine]
@@ -99,6 +94,14 @@ class Client:
         while True:
             message = await self._incoming_message_queue.async_pop()
             await callback(message)
+
+    async def _handle_disconnection(self):
+        self._reconnect_event.clear()
+        self._state = ClientState.RECONNECTING
+        self._disconnect_task_handle = asyncio.get_running_loop().call_later(
+            self.reconnect_timeout, self.shutdown
+        )
+        await self._reconnect_event.wait()
 
     def start_receiving(self, callback: Callable[[Message], Coroutine]):
         if not self._socket_read_task:  # Make sure this is idempotent
@@ -135,7 +138,10 @@ class Client:
 
         self._tcp_writer.write(len(data).to_bytes(2, "big", signed=False))
         self._tcp_writer.write(data)
-        await self._tcp_writer.drain()
+        try:
+            await self._tcp_writer.drain()
+        except ConnectionError:
+            await self._handle_disconnection()
 
     async def receive(self) -> Message:
         return await self._incoming_message_queue.async_pop()

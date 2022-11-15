@@ -20,6 +20,9 @@ class Group:
     def __contains__(self, item):
         return item in self._members
 
+    def __len__(self):
+        return len(self._members)
+
     async def send(self, message: Any):
         await self.checked_send(message, set())
 

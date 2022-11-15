@@ -16,8 +16,8 @@ class CannotBeSerialised(Exception):
 
 
 class MalformedDataError(Exception):
-    def __init__(self, causing_exception):
-        self.caused_by = causing_exception
+    def __init__(self, causing_exception: Exception):
+        self.caused_by: Exception = causing_exception
 
 
 class Serialiser:
@@ -26,7 +26,7 @@ class Serialiser:
     def __init__(self, stream: BytesIO):
         self.stream: BytesIO = stream
 
-    def serialise(self, obj: Any):
+    def serialise(self, obj: Any) -> None:
         serialiser = self._type_to_serialiser.get(type(obj), None)
         if serialiser is not None:
             self.stream.write(_type_to_discriminant[type(obj)].to_bytes(1, "big"))
@@ -44,7 +44,7 @@ class Serialiser:
     def get_data(self) -> bytes:
         return self.stream.getvalue()
 
-    def _serialise_object(self, obj: Any):
+    def _serialise_object(self, obj: Any) -> None:
         has_slots = hasattr(obj, "__slots__")
         has_dict = hasattr(obj, "__dict__")
 
@@ -80,7 +80,7 @@ class Serialiser:
         if has_dict:
             self._serialise_dict(obj.__dict__)
 
-    def _serialise_int(self, obj: int):
+    def _serialise_int(self, obj: int) -> None:
         raw_bytes = obj.to_bytes(
             (obj.bit_length() + 6) // 7,  # + 7 makes it round upwards
             "big",
@@ -97,7 +97,7 @@ class Serialiser:
         self.stream.write(len(raw_bytes).to_bytes(2, "big"))
         self.stream.write(raw_bytes)
 
-    def _serialise_str(self, obj: str):
+    def _serialise_str(self, obj: str) -> None:
         encoded = obj.encode("utf-8")
 
         if len(encoded) > self.MAXIMUM_SIZE:
@@ -106,13 +106,13 @@ class Serialiser:
         self.stream.write(len(encoded).to_bytes(2, "big"))
         self.stream.write(encoded)
 
-    def _serialise_bool(self, obj: bool):
+    def _serialise_bool(self, obj: bool) -> None:
         if obj:
             self.stream.write(b"\x01")
         else:
             self.stream.write(b"\x00")
 
-    def _serialise_tuple(self, obj: tuple):
+    def _serialise_tuple(self, obj: tuple) -> None:
         if len(obj) > self.MAXIMUM_SIZE:
             raise ObjectTooLargeException
 
@@ -121,7 +121,7 @@ class Serialiser:
         for item in obj:
             self.serialise(item)
 
-    def _serialise_list(self, obj: list):
+    def _serialise_list(self, obj: list) -> None:
         if len(obj) > self.MAXIMUM_SIZE:
             raise ObjectTooLargeException
 
@@ -130,7 +130,7 @@ class Serialiser:
         for item in obj:
             self.serialise(item)
 
-    def _serialise_dict(self, obj: dict):
+    def _serialise_dict(self, obj: dict) -> None:
         if len(obj) > self.MAXIMUM_SIZE // 2:
             raise ObjectTooLargeException
 
@@ -140,7 +140,7 @@ class Serialiser:
             self.serialise(key)
             self.serialise(value)
 
-    def _serialise_set(self, obj: set):
+    def _serialise_set(self, obj: set) -> None:
         if len(obj) > self.MAXIMUM_SIZE:
             raise ObjectTooLargeException
 
@@ -149,14 +149,14 @@ class Serialiser:
         for item in obj:
             self.serialise(item)
 
-    def _serialise_float(self, obj: float):
+    def _serialise_float(self, obj: float) -> None:
         self.stream.write(struct.pack("d", obj))
 
-    def _serialise_complex(self, obj: complex):
+    def _serialise_complex(self, obj: complex) -> None:
         self._serialise_float(obj.real)
         self._serialise_float(obj.imag)
 
-    def _serialise_bytes(self, obj: bytes):
+    def _serialise_bytes(self, obj: bytes) -> None:
         if len(obj) > self.MAXIMUM_SIZE:
             raise ObjectTooLargeException
 
@@ -164,10 +164,10 @@ class Serialiser:
 
         self.stream.write(obj)
 
-    def _serialise_bytearray(self, obj: bytearray):
+    def _serialise_bytearray(self, obj: bytearray) -> None:
         self._serialise_bytes(obj)
 
-    def _serialise_frozenset(self, obj: frozenset):
+    def _serialise_frozenset(self, obj: frozenset) -> None:
         if len(obj) > self.MAXIMUM_SIZE:
             raise ObjectTooLargeException
 
@@ -176,7 +176,7 @@ class Serialiser:
         for item in obj:
             self.serialise(item)
 
-    def _serialise_none(self, obj: None):
+    def _serialise_none(self, obj: None) -> None:
         # None is a singleton, no data is stored about it
         return
 
@@ -198,8 +198,8 @@ class Serialiser:
 
 
 class Deserialiser:
-    def __init__(self, stream):
-        self.stream = stream
+    def __init__(self, stream: BytesIO):
+        self.stream: BytesIO = stream
 
     def deserialise(self) -> Any:
         discriminant = int.from_bytes(self.stream.read(1), "big")
@@ -316,7 +316,7 @@ class Deserialiser:
 
         return frozenset(self.deserialise() for _ in range(length))
 
-    def _deserialise_none(self):
+    def _deserialise_none(self) -> None:
         return None
 
     _type_to_deserialiser: Dict[type, Callable[[Deserialiser], Any]] = {
@@ -336,10 +336,10 @@ class Deserialiser:
     }
 
 
-_user_defined_serialisable_types = set()
+_user_defined_serialisable_types: set[type] = set()
 
 
-def make_serialisable(cls: type):
+def make_serialisable(cls: type) -> type:
     if cls in _type_to_discriminant or cls in _user_defined_serialisable_types:
         raise TypeError(f"{cls} can already be serialised")
     _user_defined_serialisable_types.add(cls)
@@ -353,7 +353,7 @@ def dumps(obj: Any) -> bytes:
     return output.getvalue()
 
 
-def dump(obj: Any, stream: BytesIO):
+def dump(obj: Any, stream: BytesIO) -> bytes:
     serialiser = Serialiser(stream)
     serialiser.serialise(obj)
     return serialiser.get_data()

@@ -17,13 +17,13 @@ from Hurricane.encryption import ClientEncryption
 class ServerConnection:
     def __init__(
         self,
-        address,
-        port,
-        family=socket.AF_INET,
-        type=socket.SOCK_STREAM,  # Shadows builtin 'type()', kept to match socket.socket()
-        proto=0,
-        fileno=None,
-    ):
+        address: str,
+        port: int,
+        family: socket.AddressFamily = socket.AF_INET,
+        type: socket.SocketKind = socket.SOCK_STREAM,  # Shadows builtin 'type()', kept to match socket.socket()
+        proto: int = 0,
+        fileno: int = None,
+    ) -> None:
         self._socket = socket.socket(
             family=family, type=type, proto=proto, fileno=fileno
         )
@@ -49,13 +49,13 @@ class ServerConnection:
         aes_secret_encrypted = rsa_cipher.encrypt(self._encrypter.aes_secret)
         self._socket.sendall(aes_secret_encrypted)
 
-    def _prepare_uuid(self):
+    def _prepare_uuid(self) -> None:
         self._uuid = uuid4()
         encrypted_uuid = self._encrypter.encrypt(self._uuid.bytes)
         self._socket.sendall(encrypted_uuid)
 
     @staticmethod
-    def from_socket(sock: socket.socket):
+    def from_socket(sock: socket.socket) -> ServerConnection:
         obj = ServerConnection.__new__(ServerConnection)
         obj._socket = sock
         obj._prepare_encryption()
@@ -63,10 +63,10 @@ class ServerConnection:
         return obj
 
     @property
-    def socket(self):
+    def socket(self) -> socket.socket:
         return self._socket
 
-    def send(self, message: Any):
+    def send(self, message: Any) -> None:
         data = serialisation.dumps(message)
         header = struct.pack("!d", datetime.now().timestamp())
         plaintext = header + data
@@ -83,9 +83,9 @@ class ServerConnection:
         received_at = datetime.now()
 
         raw_data = self._encrypter.decrypt(encrypted_data)
-        sent_at, data = raw_data[:8], raw_data[8:]
+        sent_at_bytes, data = raw_data[:8], raw_data[8:]
 
-        sent_at = datetime.fromtimestamp(struct.unpack("!d", sent_at)[0])
+        sent_at = datetime.fromtimestamp(struct.unpack("!d", sent_at_bytes)[0])
         contents = serialisation.loads(data)
 
         return AnonymousMessage(contents, sent_at, received_at)

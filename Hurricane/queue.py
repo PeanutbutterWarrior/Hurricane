@@ -6,7 +6,7 @@ T = TypeVar("T")
 
 
 class Queue(Generic[T]):
-    def __init__(self):
+    def __init__(self) -> None:
         self._q: deque[T] = deque()
         self._has_item: Lock = Lock()
         # There is no way to synchronously acquire a lock
@@ -16,13 +16,13 @@ class Queue(Generic[T]):
         #
         self._has_item._locked = True
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._q)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"Queue(length={len(self)})"
 
-    def push(self, value: T):
+    def push(self, value: T) -> None:
         self._q.append(value)
         if self._has_item.locked():
             self._has_item.release()

@@ -31,7 +31,7 @@ class Client:
         client_disconnect_callback,
         reconnect_timeout: int,
         encrypter: ServerEncryption,
-    ):
+    ) -> None:
 
         self._tcp_reader: StreamReader = tcp_reader
         self._tcp_writer: StreamWriter = tcp_writer
@@ -54,7 +54,7 @@ class Client:
         )
         self.reconnect_timeout = reconnect_timeout
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return self._uuid.int
 
     @property
@@ -65,7 +65,7 @@ class Client:
     def uuid(self) -> UUID:
         return self._uuid
 
-    async def _read_from_socket(self):
+    async def _read_from_socket(self) -> None:
         while True:
             try:
                 message_size = await self._tcp_reader.readexactly(2)
@@ -90,12 +90,12 @@ class Client:
 
     async def _dispatch_messages_to_callback(
         self, callback: Callable[[Message], Coroutine]
-    ):
+    ) -> None:
         while True:
             message = await self._incoming_message_queue.async_pop()
             await callback(message)
 
-    async def _handle_disconnection(self):
+    async def _handle_disconnection(self) -> None:
         self._reconnect_event.clear()
         self._state = ClientState.RECONNECTING
         self._disconnect_task_handle = asyncio.get_running_loop().call_later(
@@ -103,7 +103,7 @@ class Client:
         )
         await self._reconnect_event.wait()
 
-    def start_receiving(self, callback: Callable[[Message], Coroutine]):
+    def start_receiving(self, callback: Callable[[Message], Coroutine] | None) -> None:
         if not self._socket_read_task:  # Make sure this is idempotent
             self._socket_read_task = asyncio.create_task(self._read_from_socket())
             if callback:
@@ -111,7 +111,7 @@ class Client:
                     self._dispatch_messages_to_callback(callback)
                 )
 
-    async def reconnect(self, proto: ClientBuilder):
+    async def reconnect(self, proto: ClientBuilder) -> None:
         if self._state != ClientState.RECONNECTING:
             raise RuntimeError("Client does not need to reconnect")
 
@@ -125,7 +125,7 @@ class Client:
             await self.send(self._outgoing_message_queue.pop())
         self._reconnect_event.set()
 
-    async def send(self, message: Any):
+    async def send(self, message: Any) -> None:
         if self.state == ClientState.RECONNECTING:
             self._outgoing_message_queue.push(message)
             return
@@ -146,7 +146,7 @@ class Client:
     async def receive(self) -> Message:
         return await self._incoming_message_queue.async_pop()
 
-    def shutdown(self):
+    def shutdown(self) -> None:
         self._state = ClientState.CLOSED
         self._tcp_writer.close()
         self._socket_read_task.cancel()
@@ -161,7 +161,7 @@ class Client:
 
 
 class ClientBuilder:
-    def __init__(self):
+    def __init__(self) -> None:
         self.reader: StreamReader | None = None
         self.writer: StreamWriter | None = None
         self.disconnect_callback: Callable[[Client], Coroutine] | None = None

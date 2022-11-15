@@ -4,7 +4,7 @@ import asyncio
 
 
 @pytest.fixture
-def runner():
+def runner() -> asyncio.AbstractEventLoop:
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     return loop

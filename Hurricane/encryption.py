@@ -3,7 +3,10 @@ from Crypto.Cipher import AES
 import hmac
 from itertools import count
 import os
-from typing import Iterator
+from typing import Iterator, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from Crypto.Cipher._mode_ctr import CtrMode as CtrAES
 
 
 class BaseEncryption(abc.ABC):
@@ -28,13 +31,13 @@ class BaseEncryption(abc.ABC):
     def aes_secret(self) -> bytes:
         return self._secret
 
-    def get_aes_key(self, nonce: bytes) -> AES:
+    def get_aes_key(self, nonce: bytes) -> CtrAES:
         return AES.new(self._secret, AES.MODE_CTR, nonce=nonce)
 
     def get_hmac(self, data: bytes) -> bytes:
         return hmac.digest(self._secret, data, "sha256")
 
-    def encrypt(self, data: bytes):
+    def encrypt(self, data: bytes) -> bytes:
         aes_key = self.get_aes_key(
             self.get_encryption_nonce().to_bytes(8, "big", signed=False)
         )

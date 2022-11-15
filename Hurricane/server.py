@@ -21,7 +21,7 @@ task_references = set()
 
 
 class Server:
-    def __init__(self, *, timeout=30, rsa_key_path=None):
+    def __init__(self, *, timeout: int = 30, rsa_key_path: str = None) -> None:
         self._clients: dict[UUID, Client] = {}
         self._new_connection_callback: Callable[[Client], Coroutine] | None = None
         self._received_message_callback: Callable[[Message], Coroutine] | None = None
@@ -40,7 +40,7 @@ class Server:
             self._rsa_key = RSA.generate(bits=2048, e=65537)
         self._rsa_cipher: PKCS1_OAEP.PKCS1OAEP_Cipher = PKCS1_OAEP.new(self._rsa_key)
 
-    def _new_client(self, reader: StreamReader, writer: StreamWriter):
+    def _new_client(self, reader: StreamReader, writer: StreamWriter) -> None:
         new_client = ClientBuilder()
         new_client.reader = reader
         new_client.writer = writer
@@ -56,7 +56,7 @@ class Server:
         tcp_reader: StreamReader,
         tcp_writer: StreamWriter,
         client_builder: ClientBuilder,
-    ):
+    ) -> None:
         tcp_writer.write(self._rsa_key.n.to_bytes(256, "big", signed=False))
         tcp_writer.write(self._rsa_key.e.to_bytes(256, "big", signed=False))
 
@@ -88,7 +88,7 @@ class Server:
         if self._new_connection_callback:
             await self._new_connection_callback(client)
 
-    def start(self, host: str, port: int):
+    def start(self, host: str, port: int) -> None:
         async def runner():
             server = await asyncio.start_server(self._new_client, host=host, port=port)
             async with server:

@@ -83,7 +83,7 @@ class Client:
                 message = Message(contents, sent_at, received_at, self)
 
                 self._incoming_message_queue.push(message)
-            except asyncio.IncompleteReadError:
+            except (asyncio.IncompleteReadError, ConnectionError):
                 # EOF was received, nothing more can be read
                 # Assume that the client has stopped listening
                 await self._handle_disconnection()
@@ -112,9 +112,6 @@ class Client:
                 )
 
     async def reconnect(self, proto: ClientBuilder) -> None:
-        if self._state != ClientState.RECONNECTING:
-            raise RuntimeError("Client does not need to reconnect")
-
         self._tcp_reader = proto.reader
         self._tcp_writer = proto.writer
         self._encrypter = proto.encrypter

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import abc
 from Crypto.Cipher import AES
 import hmac
